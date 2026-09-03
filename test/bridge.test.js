@@ -87,4 +87,23 @@ describe('Antigravity Bridge Server Test Suite', () => {
     assert.equal(data.matchedBy, 'port:5173');
     assert.ok(data.deliveredVia);
   });
+
+  test('7. POST /api/feedback - Saves base64 annotated screenshot to disk and forwards to IDE', async () => {
+    const fs = require('fs');
+    const samplePng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const res = await fetch(`${baseUrl}/api/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pageUrl: 'http://localhost:5173/login',
+        comment: 'User drew red boxes on logo & input and arrow to title',
+        screenshot: samplePng
+      })
+    });
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.success, true);
+    assert.ok(data.savedScreenshotPath);
+    assert.ok(fs.existsSync(data.savedScreenshotPath));
+  });
 });

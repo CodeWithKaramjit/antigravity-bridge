@@ -166,17 +166,28 @@
     </div>
   </div>
 
-  <button class="btn-inspect" id="btnInspect">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="10"></circle>
-      <circle cx="12" cy="12" r="6"></circle>
-      <circle cx="12" cy="12" r="2"></circle>
-    </svg>
-    Inspect Current Page
-  </button>
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <button class="btn-inspect" id="btnScreenshot" style="background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+        <circle cx="12" cy="13" r="4"></circle>
+      </svg>
+      Screenshot &amp; Annotate
+    </button>
 
-  <div class="shortcut-tip">
-    Mac Shortcut: <kbd>Option + A</kbd>
+    <button class="btn-inspect" id="btnInspect" style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: none; color: #cbd5e1;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <circle cx="12" cy="12" r="6"></circle>
+        <circle cx="12" cy="12" r="2"></circle>
+      </svg>
+      Inspect DOM Element
+    </button>
+  </div>
+
+  <div class="shortcut-tip" style="display: flex; justify-content: space-around; gap: 4px; font-size: 10px; margin-top: 12px;">
+    <span>Screenshot: <kbd>Option + S</kbd></span>
+    <span>Inspect: <kbd>Option + A</kbd></span>
   </div>
 
   <div class="offline-warning" id="offlineWarning">

@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 4000;
 const AGENTAPI_PATH = process.env.AGENTAPI_PATH || path.join(os.homedir(), '.gemini/antigravity-ide/bin/agentapi');
 
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '25mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Cache for conversation metadata to ensure fast sub-millisecond responses
@@ -318,7 +318,7 @@ app.get('/', (req, res) => {
 
 // Primary Endpoint: Receives Visual UI Feedback from Chrome Extension / Browser
 app.post('/api/feedback', (req, res) => {
-  const { element, selector, comment, pageUrl, conversationId } = req.body || {};
+  const { element, selector, comment, pageUrl, conversationId, screenshot } = req.body || {};
 
   if (!comment || !comment.trim()) {
     return res.status(400).json({ success: false, error: 'Comment / instructions are required.' });
@@ -327,46 +327,95 @@ app.post('/api/feedback', (req, res) => {
   const target = resolveTarget(pageUrl, conversationId);
   const targetConvId = target.conversationId;
 
+  // Process and save annotated screenshot if provided
+  let savedScreenshotPath = null;
+  if (screenshot && typeof screenshot === 'string' && screenshot.startsWith('data:image/')) {
+    try {
+      const matches = screenshot.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+      if (matches) {
+        const ext = matches[1] === 'jpeg' ? 'jpg' : 'png';
+        const buffer = Buffer.from(matches[2], 'base64');
+        const targetDir = targetConvId
+          ? path.join(os.homedir(), '.gemini/antigravity-ide/brain', targetConvId, 'screenshots')
+          : path.join(os.tmpdir(), 'antigravity-screenshots');
+
+        fs.mkdirSync(targetDir, { recursive: true });
+        const fileName = `screenshot_${Date.now()}.${ext}`;
+        savedScreenshotPath = path.join(targetDir, fileName);
+        fs.writeFileSync(savedScreenshotPath, buffer);
+        console.log(`[Antigravity Bridge] Saved annotated screenshot to: ${savedScreenshotPath}`);
+      }
+    } catch (saveErr) {
+      console.warn('[Antigravity Bridge] Warning: Could not save screenshot to disk:', saveErr.message);
+    }
+  }
+
   // Construct structured engineering prompt for Antigravity IDE
-  const prompt = [
-    '## 🎯 Visual UI Feedback Received from Browser',
+  const promptLines = [
+    '## 🎯 Visual UI Feedback & Screenshot Received from Browser',
     `**Target Project:** ${target.workspaceName} (${target.workspacePath || 'Default Workspace'})`,
-    `**Page URL:** ${pageUrl || 'Local Webpage'}`,
-    `**Target Selector:** \`${selector || 'N/A'}\``,
-    `**Routing Method:** ${target.matchedBy}`,
-    '',
-    '**Target Element HTML:**',
-    '```html',
-    element || '(No HTML captured)',
-    '```',
+    `**Page URL:** ${pageUrl || 'Local Webpage'}`
+  ];
+
+  if (selector) {
+    promptLines.push(`**Target Selector:** \`${selector}\``);
+  }
+
+  if (savedScreenshotPath) {
+    promptLines.push(
+      '',
+      '**Annotated Screenshot with User Markings (Lightshot Mode):**',
+      `![User UI Markings](${savedScreenshotPath})`,
+      `*(Image file saved at: \`${savedScreenshotPath}\`)*`
+    );
+  }
+
+  if (element) {
+    promptLines.push(
+      '',
+      '**Target Element HTML:**',
+      '```html',
+      element,
+      '```'
+    );
+  }
+
+  promptLines.push(
     '',
     '**User Requested Change / Instructions:**',
     comment.trim(),
     '',
     '--------------------------------------------------',
     '### 🚨 MANDATORY PROTOCOL (Plan Before Execution):',
-    '1. **Inspect First**: Locate the component, template, or CSS rule matching this selector/HTML snippet in this workspace.',
-    '2. **Create Implementation Plan**: Since this is a visual UI change, create a structured implementation plan (`implementation_plan.md`) with phases and verification steps, and set `request_feedback = true` so the user can review and approve it.',
+    savedScreenshotPath
+      ? '1. **Analyze Screenshot Markings**: Inspect the red boxes, arrows, and visual annotations in the screenshot image above to pinpoint the exact changes.'
+      : '1. **Inspect First**: Locate the component, template, or CSS rule matching this selector/HTML snippet in this workspace.',
+    '2. **Create Implementation Plan**: Since this is a visual UI change, create a structured implementation plan (`implementation_plan.md`) with phases and verification steps, and set `request_feedback = true` so the user can review and approve it before code edits.',
     '3. **Execute Only After Approval**: Wait for user approval before making actual code changes.',
     '4. **Verify**: Ensure zero TypeScript, styling, or runtime regressions.'
-  ].join('\n');
+  );
+
+  const prompt = promptLines.join('\n');
 
   console.log('\n[Antigravity Bridge] Visual feedback received:');
   console.log(`- Page: ${pageUrl}`);
   console.log(`- Target Workspace: ${target.workspaceName} (${target.matchedBy})`);
   console.log(`- Target Conversation ID: ${targetConvId || '(auto)'}`);
-  console.log(`- Selector: ${selector}`);
+  if (savedScreenshotPath) console.log(`- Screenshot: ${savedScreenshotPath}`);
+  if (selector) console.log(`- Selector: ${selector}`);
   console.log(`- Instructions: ${comment}\n`);
 
   if (!targetConvId) {
     return res.status(200).json({
       success: true,
       deliveredVia: 'queued',
+      savedScreenshotPath,
       message: 'Feedback received, but no active Antigravity IDE conversation was found. Please keep Antigravity open.'
     });
   }
 
-  const title = `UI Feedback: ${(selector || 'Element').slice(0, 30)}`;
+  const titlePrefix = savedScreenshotPath ? 'UI Screenshot' : 'UI Feedback';
+  const title = `${titlePrefix}: ${(selector || 'Annotation').slice(0, 25)}`;
   const args = ['send-message', `--title=${title}`, targetConvId, prompt];
 
   execFile(AGENTAPI_PATH, args, (error, stdout, stderr) => {
@@ -377,6 +426,7 @@ app.post('/api/feedback', (req, res) => {
         deliveredVia: 'queued',
         conversationId: targetConvId,
         workspaceName: target.workspaceName,
+        savedScreenshotPath,
         message: 'Feedback received and queued for Antigravity IDE.',
         notice: error.message
       });
@@ -390,7 +440,8 @@ app.post('/api/feedback', (req, res) => {
       workspaceName: target.workspaceName,
       workspacePath: target.workspacePath,
       matchedBy: target.matchedBy,
-      message: `Visual feedback successfully sent to Antigravity (${target.workspaceName}) chat!`
+      savedScreenshotPath,
+      message: `Visual feedback & screenshot successfully sent to Antigravity (${target.workspaceName}) chat!`
     });
   });
 });

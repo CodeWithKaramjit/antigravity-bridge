@@ -1,7 +1,9 @@
 /**
  * Antigravity Visual Inspector - Content Script
- * Injected into webpages to provide visual element selection, hover highlighting,
- * and direct feedback dispatch to Antigravity IDE.
+ * Injected into webpages to provide:
+ * 1. DOM Visual element selection & inspection (with disabled element support)
+ * 2. Lightshot-style Screenshot Capture & Markup tool (Rectangle, Arrow, Pen, Text)
+ * 3. Direct feedback dispatch with annotated screenshots to Antigravity IDE
  */
 
 (() => {
@@ -18,8 +20,10 @@
 
   const BRIDGE_API_URL = 'http://localhost:4000/api/feedback';
   let isInspectMode = false;
+  let isScreenshotMode = false;
   let hoveredElement = null;
   let selectedElement = null;
+  let currentScreenshotDataUrl = null;
 
   // Root Host Container
   const container = document.createElement('div');
@@ -93,7 +97,7 @@
       font-weight: 600;
       display: none;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(99, 102, 241, 0.3);
       animation: bannerFadeIn 0.2s ease-out;
     }
@@ -105,16 +109,133 @@
       box-shadow: 0 0 8px #10b981;
       animation: pulse 1.5s infinite;
     }
+    .ag-banner-action-btn {
+      background: rgba(99, 102, 241, 0.2);
+      border: 1px solid rgba(99, 102, 241, 0.5);
+      color: #38bdf8;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+    .ag-banner-action-btn:hover {
+      background: rgba(99, 102, 241, 0.4);
+      color: #ffffff;
+    }
     .ag-mode-exit {
       background: rgba(255, 255, 255, 0.1);
       border: 1px solid rgba(255, 255, 255, 0.15);
       color: #cbd5e1;
       font-size: 11px;
-      padding: 2px 7px;
+      padding: 3px 8px;
       border-radius: 4px;
       cursor: pointer;
     }
     .ag-mode-exit:hover { background: rgba(255, 255, 255, 0.2); color: #fff; }
+
+    /* Screenshot Annotation Overlay & Canvas */
+    .ag-screenshot-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 2147483643;
+      display: none;
+      user-select: none;
+      -webkit-user-select: none;
+      background: #000;
+    }
+    .ag-screenshot-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      cursor: crosshair;
+      display: block;
+    }
+
+    /* Floating Annotation Toolbar (Lightshot Style) */
+    .ag-annotation-toolbar {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2147483647;
+      background: #0f172a;
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      border-radius: 9999px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8), 0 0 20px rgba(99, 102, 241, 0.25);
+      animation: bannerFadeIn 0.2s ease-out;
+    }
+    .ag-tool-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: #94a3b8;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.15s ease;
+    }
+    .ag-tool-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #f8fafc;
+    }
+    .ag-tool-btn.active {
+      background: rgba(99, 102, 241, 0.25);
+      border-color: #6366f1;
+      color: #38bdf8;
+    }
+    .ag-toolbar-sep {
+      width: 1px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.15);
+      margin: 0 2px;
+    }
+    .ag-color-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.15s ease;
+    }
+    .ag-color-dot:hover { transform: scale(1.15); }
+    .ag-color-dot.active { border-color: #ffffff; box-shadow: 0 0 8px rgba(255, 255, 255, 0.9); }
+    .ag-done-btn {
+      background: linear-gradient(135deg, #10b981, #059669);
+      border: none;
+      color: #ffffff;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 10px rgba(16, 185, 129, 0.4);
+      transition: all 0.15s ease;
+    }
+    .ag-done-btn:hover {
+      background: linear-gradient(135deg, #059669, #047857);
+      transform: translateY(-1px);
+    }
 
     /* Modal Overlay & Card */
     .ag-modal-overlay {
@@ -138,7 +259,7 @@
       background: #0f172a;
       border: 1px solid rgba(99, 102, 241, 0.35);
       border-radius: 16px;
-      width: 500px;
+      width: 520px;
       max-width: 92vw;
       padding: 24px;
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(99, 102, 241, 0.25);
@@ -173,44 +294,64 @@
     }
     .ag-modal-close:hover { color: #fff; }
 
-    .ag-target-box {
-      background: rgba(30, 41, 59, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin-bottom: 16px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 12px;
-      color: #38bdf8;
-      word-break: break-all;
-      max-height: 95px;
-      overflow-y: auto;
-    }
     .ag-target-label {
       font-size: 11px;
+      font-weight: 700;
       color: #94a3b8;
-      font-weight: 600;
-      margin-bottom: 4px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+    .ag-target-box {
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      color: #38bdf8;
+      margin-bottom: 16px;
+      max-height: 90px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .ag-screenshot-preview-box {
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      background: #020617;
+      max-height: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+    .ag-screenshot-preview-box img {
+      max-width: 100%;
+      max-height: 180px;
+      object-fit: contain;
+      display: block;
     }
 
     .ag-textarea-label {
       font-size: 12px;
       font-weight: 600;
-      color: #cbd5e1;
+      color: #e2e8f0;
       margin-bottom: 6px;
       display: block;
     }
     .ag-textarea {
       width: 100%;
-      height: 110px;
+      height: 95px;
       background: #1e293b;
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 8px;
-      padding: 12px;
       color: #f8fafc;
+      padding: 10px 12px;
       font-size: 13px;
+      line-height: 1.4;
       resize: vertical;
       outline: none;
       transition: border-color 0.2s ease;
@@ -277,6 +418,10 @@
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.4; transform: scale(0.85); }
     }
+    @keyframes bannerFadeIn {
+      from { opacity: 0; transform: translate(-50%, -10px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
+    }
   `;
   shadow.appendChild(style);
 
@@ -298,10 +443,86 @@
   modeBanner.className = 'ag-mode-banner';
   modeBanner.innerHTML = `
     <span class="ag-mode-dot"></span>
-    <span>Click any element to comment for Antigravity IDE</span>
+    <span>Click any element to comment</span>
+    <button class="ag-banner-action-btn" id="agSwitchToScreenshot">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+        <circle cx="12" cy="13" r="4"></circle>
+      </svg>
+      Screenshot &amp; Mark
+    </button>
     <button class="ag-mode-exit" id="agExitBtn">Esc to exit</button>
   `;
   shadow.appendChild(modeBanner);
+
+  // Screenshot Annotation Overlay & Toolbar
+  const screenshotOverlay = document.createElement('div');
+  screenshotOverlay.className = 'ag-screenshot-overlay';
+
+  const screenshotCanvas = document.createElement('canvas');
+  screenshotCanvas.className = 'ag-screenshot-canvas';
+  screenshotOverlay.appendChild(screenshotCanvas);
+
+  const annotationToolbar = document.createElement('div');
+  annotationToolbar.className = 'ag-annotation-toolbar';
+  annotationToolbar.innerHTML = `
+    <button class="ag-tool-btn active" data-tool="rect" title="Rectangle Box (R)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+      </svg>
+    </button>
+    <button class="ag-tool-btn" data-tool="arrow" title="Arrow (A)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="5" y1="19" x2="19" y2="5"></line>
+        <polyline points="12 5 19 5 19 12"></polyline>
+      </svg>
+    </button>
+    <button class="ag-tool-btn" data-tool="pen" title="Freehand Pen (P)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+        <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+      </svg>
+    </button>
+    <button class="ag-tool-btn" data-tool="text" title="Text Label (T)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4 7 4 4 20 4 20 7"></polyline>
+        <line x1="9" y1="20" x2="15" y2="20"></line>
+        <line x1="12" y1="4" x2="12" y2="20"></line>
+      </svg>
+    </button>
+    <div class="ag-toolbar-sep"></div>
+    <div class="ag-color-dot active" data-color="#ef4444" style="background: #ef4444;" title="Red"></div>
+    <div class="ag-color-dot" data-color="#3b82f6" style="background: #3b82f6;" title="Blue"></div>
+    <div class="ag-color-dot" data-color="#10b981" style="background: #10b981;" title="Green"></div>
+    <div class="ag-color-dot" data-color="#f59e0b" style="background: #f59e0b;" title="Yellow"></div>
+    <div class="ag-toolbar-sep"></div>
+    <button class="ag-tool-btn" id="agBtnUndo" title="Undo (Cmd/Ctrl + Z)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 7v6h6"></path>
+        <path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"></path>
+      </svg>
+    </button>
+    <button class="ag-tool-btn" id="agBtnClear" title="Clear All Markings">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="3 6 5 6 21 6"></polyline>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+      </svg>
+    </button>
+    <button class="ag-tool-btn" id="agBtnCancelScreenshot" title="Exit (Esc)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+    <button class="ag-done-btn" id="agBtnDoneScreenshot">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+      Done
+    </button>
+  `;
+  screenshotOverlay.appendChild(annotationToolbar);
+  shadow.appendChild(screenshotOverlay);
 
   // Modal
   const modalOverlay = document.createElement('div');
@@ -320,8 +541,19 @@
         <button class="ag-modal-close" id="agModalClose">&times;</button>
       </div>
 
-      <div class="ag-target-label">Selected Element</div>
-      <div class="ag-target-box" id="agTargetPreview">&lt;element&gt;</div>
+      <!-- Target DOM Element Preview (in element inspect mode) -->
+      <div id="agTargetSection">
+        <div class="ag-target-label">Selected Element</div>
+        <div class="ag-target-box" id="agTargetPreview">&lt;element&gt;</div>
+      </div>
+
+      <!-- Screenshot Preview Card (in screenshot mode) -->
+      <div id="agScreenshotSection" style="display: none;">
+        <div class="ag-target-label">Annotated Screenshot</div>
+        <div class="ag-screenshot-preview-box">
+          <img id="agScreenshotThumb" alt="Annotated Screenshot Preview" />
+        </div>
+      </div>
 
       <label class="ag-textarea-label" for="agCommentInput">What changes should Antigravity IDE make?</label>
       <textarea
@@ -349,8 +581,8 @@
   toast.className = 'ag-toast';
   shadow.appendChild(toast);
 
-  function showToast(message, isError = false) {
-    toast.textContent = message;
+  function showToast(msg, isError = false) {
+    toast.textContent = msg;
     toast.style.borderColor = isError ? '#f43f5e' : '#10b981';
     toast.style.color = isError ? '#fecdd3' : '#a7f3d0';
     toast.style.display = 'block';
@@ -359,14 +591,14 @@
     }, 4500);
   }
 
-  // Get CSS Selector
+  // CSS Selector Generator
   function getCssSelector(el) {
     if (!(el instanceof Element)) return '';
     const path = [];
     while (el && el.nodeType === Node.ELEMENT_NODE) {
       let selector = el.nodeName.toLowerCase();
       if (el.id) {
-        selector += '#' + el.id;
+        selector += `#${el.id}`;
         path.unshift(selector);
         break;
       } else {
@@ -448,11 +680,12 @@
     highlighterBadge.textContent = `${tag}${id}${classes}${disabledBadge} (${Math.round(rect.width)}×${Math.round(rect.height)})`;
   }
 
-  // Toggle Inspector Mode
+  // Toggle DOM Inspector Mode
   function toggleInspectMode(forceState) {
     isInspectMode = forceState !== undefined ? forceState : !isInspectMode;
 
     if (isInspectMode) {
+      if (isScreenshotMode) exitScreenshotMode();
       injectPageOverrideStyles();
       clickTrap.style.display = 'block';
       modeBanner.style.display = 'flex';
@@ -484,6 +717,7 @@
     const target = resolveElementAtPoint(e.clientX, e.clientY) || hoveredElement;
     if (target) {
       selectedElement = target;
+      currentScreenshotDataUrl = null;
       toggleInspectMode(false);
       openModal(selectedElement);
     }
@@ -502,20 +736,337 @@
     }, 10);
   }, { passive: true });
 
-  function onKeyDown(e) {
-    if (e.key === 'Escape') {
-      toggleInspectMode(false);
-      closeModal();
+  /* ==========================================================================
+     LIGHTSHOT-STYLE SCREENSHOT & ANNOTATION ENGINE
+     ========================================================================== */
+
+  let screenshotBgImage = null;
+  let shapes = [];
+  let currentTool = 'rect'; // 'rect', 'arrow', 'pen', 'text'
+  let currentColor = '#ef4444'; // Red default
+  let isDrawing = false;
+  let startX = 0;
+  let startY = 0;
+  let currentPoints = [];
+  let dpr = window.devicePixelRatio || 1;
+
+  async function startScreenshotMode() {
+    if (isInspectMode) toggleInspectMode(false);
+    isScreenshotMode = true;
+
+    // Request tab screenshot from background service worker
+    chrome.runtime.sendMessage({ action: 'capture-tab' }, (response) => {
+      if (!response || !response.success || !response.dataUrl) {
+        showToast(`Screenshot capture failed: ${response?.error || 'Unknown error'}`, true);
+        exitScreenshotMode();
+        return;
+      }
+
+      screenshotBgImage = new Image();
+      screenshotBgImage.onload = () => {
+        dpr = window.devicePixelRatio || 1;
+        screenshotCanvas.width = window.innerWidth * dpr;
+        screenshotCanvas.height = window.innerHeight * dpr;
+        screenshotCanvas.style.width = `${window.innerWidth}px`;
+        screenshotCanvas.style.height = `${window.innerHeight}px`;
+
+        shapes = [];
+        redrawCanvas();
+        screenshotOverlay.style.display = 'block';
+        window.addEventListener('keydown', onKeyDown, true);
+      };
+      screenshotBgImage.src = response.dataUrl;
+    });
+  }
+
+  function exitScreenshotMode() {
+    isScreenshotMode = false;
+    screenshotOverlay.style.display = 'none';
+    shapes = [];
+    isDrawing = false;
+    window.removeEventListener('keydown', onKeyDown, true);
+  }
+
+  // Draw arrow with sharp arrowhead
+  function drawArrow(ctx, x1, y1, x2, y2, color, lineWidth) {
+    const headLength = 16 * dpr;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const angle = Math.atan2(dy, dx);
+
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Main line
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    // Arrowhead
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - headLength * Math.cos(angle - Math.PI / 6), y2 - headLength * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(x2 - headLength * Math.cos(angle + Math.PI / 6), y2 - headLength * Math.sin(angle + Math.PI / 6));
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Draw rectangle with clean stroke
+  function drawRect(ctx, x1, y1, x2, y2, color, lineWidth) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+    ctx.restore();
+  }
+
+  // Draw freehand stroke
+  function drawPen(ctx, points, color, lineWidth) {
+    if (!points || points.length < 2) return;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Draw text label
+  function drawText(ctx, x, y, text, color) {
+    if (!text) return;
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.font = `bold ${16 * dpr}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  // Redraw all shapes on canvas
+  function redrawCanvas(previewX, previewY) {
+    const ctx = screenshotCanvas.getContext('2d');
+    ctx.clearRect(0, 0, screenshotCanvas.width, screenshotCanvas.height);
+
+    // Draw background screenshot image
+    if (screenshotBgImage) {
+      ctx.drawImage(screenshotBgImage, 0, 0, screenshotCanvas.width, screenshotCanvas.height);
+    }
+
+    const defaultLineWidth = 3.5 * dpr;
+
+    // Draw persisted shapes
+    for (const shape of shapes) {
+      if (shape.type === 'rect') {
+        drawRect(ctx, shape.x1, shape.y1, shape.x2, shape.y2, shape.color, shape.lineWidth || defaultLineWidth);
+      } else if (shape.type === 'arrow') {
+        drawArrow(ctx, shape.x1, shape.y1, shape.x2, shape.y2, shape.color, shape.lineWidth || defaultLineWidth);
+      } else if (shape.type === 'pen') {
+        drawPen(ctx, shape.points, shape.color, shape.lineWidth || defaultLineWidth);
+      } else if (shape.type === 'text') {
+        drawText(ctx, shape.x, shape.y, shape.text, shape.color);
+      }
+    }
+
+    // Draw live preview shape currently being dragged
+    if (isDrawing && previewX !== undefined && previewY !== undefined) {
+      if (currentTool === 'rect') {
+        drawRect(ctx, startX, startY, previewX, previewY, currentColor, defaultLineWidth);
+      } else if (currentTool === 'arrow') {
+        drawArrow(ctx, startX, startY, previewX, previewY, currentColor, defaultLineWidth);
+      } else if (currentTool === 'pen') {
+        drawPen(ctx, currentPoints, currentColor, defaultLineWidth);
+      }
     }
   }
 
+  // Pointer Events on Annotation Canvas
+  screenshotCanvas.addEventListener('pointerdown', (e) => {
+    if (!isScreenshotMode) return;
+    dpr = window.devicePixelRatio || 1;
+    startX = e.clientX * dpr;
+    startY = e.clientY * dpr;
+
+    if (currentTool === 'text') {
+      const text = prompt('Enter annotation label:');
+      if (text && text.trim()) {
+        shapes.push({
+          type: 'text',
+          text: text.trim(),
+          x: startX,
+          y: startY,
+          color: currentColor
+        });
+        redrawCanvas();
+      }
+      return;
+    }
+
+    isDrawing = true;
+    if (currentTool === 'pen') {
+      currentPoints = [{ x: startX, y: startY }];
+    }
+  });
+
+  screenshotCanvas.addEventListener('pointermove', (e) => {
+    if (!isScreenshotMode || !isDrawing) return;
+    const currX = e.clientX * dpr;
+    const currY = e.clientY * dpr;
+
+    if (currentTool === 'pen') {
+      currentPoints.push({ x: currX, y: currY });
+    }
+    redrawCanvas(currX, currY);
+  });
+
+  screenshotCanvas.addEventListener('pointerup', (e) => {
+    if (!isScreenshotMode || !isDrawing) return;
+    isDrawing = false;
+    const currX = e.clientX * dpr;
+    const currY = e.clientY * dpr;
+    const defaultLineWidth = 3.5 * dpr;
+
+    if (currentTool === 'rect') {
+      if (Math.abs(currX - startX) > 4 || Math.abs(currY - startY) > 4) {
+        shapes.push({
+          type: 'rect',
+          color: currentColor,
+          x1: startX,
+          y1: startY,
+          x2: currX,
+          y2: currY,
+          lineWidth: defaultLineWidth
+        });
+      }
+    } else if (currentTool === 'arrow') {
+      if (Math.abs(currX - startX) > 6 || Math.abs(currY - startY) > 6) {
+        shapes.push({
+          type: 'arrow',
+          color: currentColor,
+          x1: startX,
+          y1: startY,
+          x2: currX,
+          y2: currY,
+          lineWidth: defaultLineWidth
+        });
+      }
+    } else if (currentTool === 'pen') {
+      if (currentPoints.length > 1) {
+        shapes.push({
+          type: 'pen',
+          color: currentColor,
+          points: [...currentPoints],
+          lineWidth: defaultLineWidth
+        });
+      }
+    }
+
+    redrawCanvas();
+  });
+
+  // Annotation Toolbar Events
+  annotationToolbar.querySelectorAll('.ag-tool-btn[data-tool]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      annotationToolbar.querySelectorAll('.ag-tool-btn[data-tool]').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentTool = btn.getAttribute('data-tool');
+    });
+  });
+
+  annotationToolbar.querySelectorAll('.ag-color-dot').forEach((dot) => {
+    dot.addEventListener('click', () => {
+      annotationToolbar.querySelectorAll('.ag-color-dot').forEach((d) => d.classList.remove('active'));
+      dot.classList.add('active');
+      currentColor = dot.getAttribute('data-color');
+    });
+  });
+
+  // Undo
+  shadow.getElementById('agBtnUndo').addEventListener('click', () => {
+    if (shapes.length > 0) {
+      shapes.pop();
+      redrawCanvas();
+    }
+  });
+
+  // Clear
+  shadow.getElementById('agBtnClear').addEventListener('click', () => {
+    if (shapes.length > 0) {
+      shapes = [];
+      redrawCanvas();
+    }
+  });
+
+  // Cancel Screenshot
+  shadow.getElementById('agBtnCancelScreenshot').addEventListener('click', exitScreenshotMode);
+
+  // Done Marking -> Open Feedback Modal with Screenshot
+  shadow.getElementById('agBtnDoneScreenshot').addEventListener('click', () => {
+    currentScreenshotDataUrl = screenshotCanvas.toDataURL('image/png');
+    exitScreenshotMode();
+    selectedElement = null;
+    openModalWithScreenshot(currentScreenshotDataUrl);
+  });
+
+  // Switch to screenshot mode from inspect banner
+  shadow.getElementById('agSwitchToScreenshot').addEventListener('click', () => {
+    toggleInspectMode(false);
+    startScreenshotMode();
+  });
+
+  function onKeyDown(e) {
+    if (e.key === 'Escape') {
+      if (isScreenshotMode) exitScreenshotMode();
+      if (isInspectMode) toggleInspectMode(false);
+      closeModal();
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && isScreenshotMode) {
+      e.preventDefault();
+      if (shapes.length > 0) {
+        shapes.pop();
+        redrawCanvas();
+      }
+    }
+  }
+
+  // Open Modal for Element Inspection
   function openModal(el) {
     const selector = getCssSelector(el);
     const htmlSnippet = el.outerHTML ? el.outerHTML.slice(0, 300) + (el.outerHTML.length > 300 ? '...' : '') : '';
 
+    shadow.getElementById('agTargetSection').style.display = 'block';
+    shadow.getElementById('agScreenshotSection').style.display = 'none';
     shadow.getElementById('agTargetPreview').textContent = `${selector}\n\n${htmlSnippet}`;
+
     const commentInput = shadow.getElementById('agCommentInput');
     commentInput.value = '';
+    commentInput.placeholder = 'e.g. Change button color to emerald green, add 12px padding, make corners rounded.';
+
+    modalOverlay.classList.add('open');
+    setTimeout(() => commentInput.focus(), 150);
+  }
+
+  // Open Modal for Screenshot & Annotations
+  function openModalWithScreenshot(dataUrl) {
+    shadow.getElementById('agTargetSection').style.display = 'none';
+    shadow.getElementById('agScreenshotSection').style.display = 'block';
+    shadow.getElementById('agScreenshotThumb').src = dataUrl;
+
+    const commentInput = shadow.getElementById('agCommentInput');
+    commentInput.value = '';
+    commentInput.placeholder = 'Describe the changes marked in your screenshot (e.g. Move logo to left, update input border color)...';
 
     modalOverlay.classList.add('open');
     setTimeout(() => commentInput.focus(), 150);
@@ -523,9 +1074,10 @@
 
   function closeModal() {
     modalOverlay.classList.remove('open');
+    currentScreenshotDataUrl = null;
   }
 
-  // Submit Feedback to Bridge
+  // Submit Feedback to Bridge Server
   async function submitFeedback() {
     const comment = shadow.getElementById('agCommentInput').value.trim();
     if (!comment) {
@@ -537,7 +1089,7 @@
     sendBtn.disabled = true;
     sendBtn.textContent = 'Sending to IDE...';
 
-    const selector = getCssSelector(selectedElement);
+    const selector = selectedElement ? getCssSelector(selectedElement) : '';
     const elementHtml = selectedElement ? selectedElement.outerHTML.slice(0, 1500) : '';
 
     try {
@@ -548,7 +1100,8 @@
           pageUrl: window.location.href,
           element: elementHtml,
           selector: selector,
-          comment: comment
+          comment: comment,
+          screenshot: currentScreenshotDataUrl || undefined
         })
       });
 
@@ -557,7 +1110,8 @@
       if (response.ok && data.success) {
         closeModal();
         const ws = data.workspaceName ? `(${data.workspaceName}) ` : '';
-        showToast(`✓ Visual feedback sent to Antigravity ${ws}chat! Review the plan in your IDE for approval.`);
+        const imgNotice = data.savedScreenshotPath ? 'with annotated screenshot ' : '';
+        showToast(`✓ Visual feedback ${imgNotice}sent to Antigravity ${ws}chat! Review the plan in your IDE for approval.`);
       } else {
         showToast(`Delivery notice: ${data.message || 'Queued'}`, false);
         closeModal();
@@ -579,8 +1133,13 @@
   // Listen for messages from background service worker
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'toggle-inspector') {
-      toggleInspectMode();
-      sendResponse({ status: isInspectMode ? 'activated' : 'deactivated' });
+      if (request.mode === 'screenshot') {
+        startScreenshotMode();
+        sendResponse({ status: 'screenshot_mode_activated' });
+      } else {
+        toggleInspectMode();
+        sendResponse({ status: isInspectMode ? 'activated' : 'deactivated' });
+      }
     }
   });
 

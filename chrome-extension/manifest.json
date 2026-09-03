@@ -34,6 +34,13 @@
         "mac": "Alt+A"
       },
       "description": "Toggle Visual Inspector on active page"
+    },
+    "capture-screenshot": {
+      "suggested_key": {
+        "default": "Alt+S",
+        "mac": "Alt+S"
+      },
+      "description": "Screenshot & Annotate page (Lightshot mode)"
     }
   },
   "icons": {

@@ -1,13 +1,14 @@
 /**
  * Antigravity Visual Inspector - Popup Controller
  * Checks Bridge Server health, auto-detects active workspace by tab port,
- * and triggers inspection on the active tab.
+ * and triggers inspection or screenshot mode on the active tab.
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
   const btnInspect = document.getElementById('btnInspect');
+  const btnScreenshot = document.getElementById('btnScreenshot');
   const offlineWarning = document.getElementById('offlineWarning');
   const workspaceRow = document.getElementById('workspaceRow');
   const targetWorkspaceBadge = document.getElementById('targetWorkspaceBadge');
@@ -33,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       statusDot.className = 'dot online';
       statusText.textContent = 'Bridge Connected';
       btnInspect.disabled = false;
+      if (btnScreenshot) btnScreenshot.disabled = false;
       offlineWarning.style.display = 'none';
 
       if (data.activeWorkspace && workspaceRow && targetWorkspaceBadge) {
@@ -47,13 +49,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     statusDot.className = 'dot offline';
     statusText.textContent = 'Bridge Offline';
     btnInspect.disabled = true;
+    if (btnScreenshot) btnScreenshot.disabled = true;
     offlineWarning.style.display = 'block';
     if (workspaceRow) workspaceRow.style.display = 'none';
   }
 
-  // Trigger inspection on active tab and close popup
+  // Trigger screenshot mode
+  if (btnScreenshot) {
+    btnScreenshot.addEventListener('click', () => {
+      chrome.runtime.sendMessage({ action: 'trigger-active-tab', mode: 'screenshot' }, () => {
+        window.close();
+      });
+    });
+  }
+
+  // Trigger DOM inspect mode
   btnInspect.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ action: 'trigger-active-tab' }, () => {
+    chrome.runtime.sendMessage({ action: 'trigger-active-tab', mode: 'inspect' }, () => {
       window.close();
     });
   });
