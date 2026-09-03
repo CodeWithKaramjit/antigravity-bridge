@@ -37,6 +37,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (btnScreenshot) btnScreenshot.disabled = false;
       offlineWarning.style.display = 'none';
 
+      // Check if current tab is a restricted browser internal page
+      const isInternal = currentTabUrl.startsWith('chrome://') ||
+        currentTabUrl.startsWith('chrome-extension://') ||
+        currentTabUrl.startsWith('devtools://') ||
+        currentTabUrl.startsWith('edge://') ||
+        currentTabUrl.startsWith('about:');
+
+      if (isInternal) {
+        btnInspect.disabled = true;
+        if (btnScreenshot) btnScreenshot.disabled = true;
+        offlineWarning.textContent = 'Chrome security prevents running on chrome:// internal pages. Please switch to your localhost web tab (e.g. localhost:5174).';
+        offlineWarning.style.display = 'block';
+      }
+
       if (data.activeWorkspace && workspaceRow && targetWorkspaceBadge) {
         workspaceRow.style.display = 'flex';
         targetWorkspaceBadge.textContent = data.activeWorkspace;
