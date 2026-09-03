@@ -1,5 +1,6 @@
 # 🚀 Antigravity Bridge & Visual Inspector
 
+[![Version](https://img.shields.io/badge/Version-2.0.0-blueviolet.svg)]()
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-5.x-blue.svg)](https://expressjs.com/)
 [![Chrome Extension](https://img.shields.io/badge/Chrome_Extension-Manifest_V3-orange.svg)](https://developer.chrome.com/docs/extensions/)
@@ -178,6 +179,16 @@ Receives element feedback and screenshots from the extension and forwards to Ant
     "screenshot": "data:image/png;base64,..."
   }
   ```
+
+---
+
+## 🏷️ Versioning Policy (SemVer)
+
+This project strictly adheres to [Semantic Versioning](https://semver.org/):
+
+- **Major Version (`X.0.0`)**: Bumped when major architectural changes, breaking updates, or significant new features are introduced (e.g. `2.0.0` added the complete Lightshot screenshot capture & annotation suite, disabled button hit-testing engine, and intelligent port-to-workspace routing).
+- **Minor / Medium Version (`X.Y.0`)**: Bumped when backward-compatible medium features, new annotation shapes, or new API capabilities are added.
+- **Patch / Minor Version (`X.Y.Z`)**: Bumped for small bug fixes, styling polishes, and minor maintenance adjustments.
 
 ---
 

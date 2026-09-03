@@ -7,6 +7,7 @@ const { execSync, execFile } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const VERSION = '2.0.0';
 const AGENTAPI_PATH = process.env.AGENTAPI_PATH || path.join(os.homedir(), '.gemini/antigravity-ide/bin/agentapi');
 
 app.use(cors());
@@ -242,6 +243,7 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'online',
     service: 'Antigravity Bridge Server',
+    version: VERSION,
     port: PORT,
     activeConversationId: target.conversationId,
     activeWorkspace: target.workspaceName,
@@ -287,16 +289,17 @@ app.get('/', (req, res) => {
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b0f19; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
         .card { background: #111827; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 16px; padding: 36px; max-width: 520px; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.5); text-align: center; }
         .dot { width: 10px; height: 10px; border-radius: 50%; background: #10b981; display: inline-block; margin-right: 6px; box-shadow: 0 0 10px #10b981; }
-        h1 { font-size: 20px; margin-top: 12px; margin-bottom: 8px; color: #e2e8f0; }
+        h1 { font-size: 20px; margin-top: 12px; margin-bottom: 8px; color: #e2e8f0; display: flex; align-items: center; justify-content: center; gap: 8px; }
         p { font-size: 14px; color: #94a3b8; line-height: 1.5; }
         code { background: #1f2937; padding: 3px 8px; border-radius: 4px; color: #38bdf8; font-family: monospace; font-size: 13px; }
         .info { margin-top: 16px; padding: 12px; background: rgba(99, 102, 241, 0.1); border-radius: 8px; font-size: 12px; color: #a5b4fc; text-align: left; }
+        .badge { font-size: 11px; background: rgba(99, 102, 241, 0.25); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.4); padding: 2px 7px; border-radius: 9999px; }
       </style>
     </head>
     <body>
       <div class="card">
         <div><span class="dot"></span><span style="font-size: 13px; font-weight: 600; color: #10b981;">BRIDGE ACTIVE</span></div>
-        <h1>Antigravity Bridge Server</h1>
+        <h1>Antigravity Bridge Server <span class="badge">v${VERSION}</span></h1>
         <p>Listening on <code>http://localhost:${PORT}</code></p>
         <div class="info">
           <b>Primary Target Workspace:</b> ${defaultTarget.workspaceName}<br/>
