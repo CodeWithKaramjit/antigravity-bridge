@@ -1,6 +1,6 @@
 # 🚀 Antigravity Bridge & Visual Inspector
 
-[![Version](https://img.shields.io/badge/Version-2.0.0-blueviolet.svg)]()
+[![Version](https://img.shields.io/badge/Version-2.0.1-blueviolet.svg)]()
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-5.x-blue.svg)](https://expressjs.com/)
 [![Chrome Extension](https://img.shields.io/badge/Chrome_Extension-Manifest_V3-orange.svg)](https://developer.chrome.com/docs/extensions/)

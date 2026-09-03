@@ -28,7 +28,7 @@ describe('Antigravity Bridge Server Test Suite', () => {
     const data = await res.json();
     assert.equal(data.status, 'online');
     assert.equal(data.service, 'Antigravity Bridge Server');
-    assert.equal(data.version, '2.0.0');
+    assert.equal(data.version, '2.0.1');
     assert.ok(data.timestamp);
     assert.ok(Array.isArray(data.workspaces));
   });

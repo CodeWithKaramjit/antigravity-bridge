@@ -7,7 +7,7 @@ const { execSync, execFile } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-const VERSION = '2.0.0';
+const VERSION = '2.0.1';
 const AGENTAPI_PATH = process.env.AGENTAPI_PATH || path.join(os.homedir(), '.gemini/antigravity-ide/bin/agentapi');
 
 app.use(cors());

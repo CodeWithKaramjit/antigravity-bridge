@@ -161,6 +161,36 @@
       display: block;
     }
 
+    /* In-Place Inline Text Annotation Input */
+    .ag-inline-text-input {
+      position: absolute;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1.5px dashed rgba(255, 255, 255, 0.75);
+      border-radius: 6px;
+      outline: none;
+      font-weight: 700;
+      font-size: 15px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 5px 9px;
+      margin: 0;
+      min-width: 140px;
+      max-width: 380px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 10px rgba(99, 102, 241, 0.3);
+      z-index: 2147483647;
+      line-height: 1.4;
+      resize: none;
+      overflow: hidden;
+      box-sizing: border-box;
+      caret-color: #ffffff;
+      white-space: pre-wrap;
+      word-break: break-word;
+      transition: border-color 0.15s ease;
+    }
+    .ag-inline-text-input:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4);
+    }
+
     /* Floating Annotation Toolbar (Lightshot Style) */
     .ag-annotation-toolbar {
       position: fixed;
@@ -779,7 +809,40 @@
     });
   }
 
+  let activeTextInput = null;
+
+  function commitActiveTextInput() {
+    if (!activeTextInput) return;
+    const input = activeTextInput;
+    const val = input.value.trim();
+    const x = parseFloat(input.dataset.canvasX);
+    const y = parseFloat(input.dataset.canvasY);
+    const color = input.dataset.color || currentColor;
+
+    activeTextInput = null;
+    input.remove();
+
+    if (val) {
+      shapes.push({
+        type: 'text',
+        text: val,
+        x: x,
+        y: y,
+        color: color
+      });
+      redrawCanvas();
+    }
+  }
+
+  function cancelActiveTextInput() {
+    if (!activeTextInput) return;
+    const input = activeTextInput;
+    activeTextInput = null;
+    input.remove();
+  }
+
   function exitScreenshotMode() {
+    cancelActiveTextInput();
     isScreenshotMode = false;
     screenshotOverlay.style.display = 'none';
     shapes = [];
@@ -850,8 +913,20 @@
     if (!text) return;
     ctx.save();
     ctx.fillStyle = color;
-    ctx.font = `bold ${16 * dpr}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-    ctx.fillText(text, x, y);
+    ctx.font = `bold ${16 * dpr}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    ctx.textBaseline = 'top';
+
+    // High-contrast text shadow for perfect readability on both light and dark pages
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+    ctx.shadowBlur = 4 * dpr;
+    ctx.shadowOffsetX = 1 * dpr;
+    ctx.shadowOffsetY = 1 * dpr;
+
+    const lines = text.split('\n');
+    const lineHeight = 20 * dpr;
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], x, y + (i * lineHeight));
+    }
     ctx.restore();
   }
 
@@ -900,17 +975,53 @@
     startY = e.clientY * dpr;
 
     if (currentTool === 'text') {
-      const text = prompt('Enter annotation label:');
-      if (text && text.trim()) {
-        shapes.push({
-          type: 'text',
-          text: text.trim(),
-          x: startX,
-          y: startY,
-          color: currentColor
-        });
-        redrawCanvas();
+      if (activeTextInput) {
+        commitActiveTextInput();
       }
+
+      const input = document.createElement('textarea');
+      input.className = 'ag-inline-text-input';
+      input.style.left = `${e.clientX}px`;
+      input.style.top = `${e.clientY}px`;
+      input.style.color = currentColor;
+      input.placeholder = 'Type note here... (Enter to finish)';
+      input.rows = 1;
+
+      input.dataset.canvasX = startX;
+      input.dataset.canvasY = startY;
+      input.dataset.color = currentColor;
+
+      screenshotOverlay.appendChild(input);
+      activeTextInput = input;
+
+      input.addEventListener('input', () => {
+        input.style.height = 'auto';
+        input.style.height = `${input.scrollHeight}px`;
+      });
+
+      input.addEventListener('keydown', (ke) => {
+        ke.stopPropagation();
+        if (ke.key === 'Enter' && !ke.shiftKey) {
+          ke.preventDefault();
+          commitActiveTextInput();
+        } else if (ke.key === 'Escape') {
+          ke.preventDefault();
+          cancelActiveTextInput();
+        }
+      });
+
+      input.addEventListener('blur', () => {
+        setTimeout(() => {
+          if (activeTextInput === input) {
+            commitActiveTextInput();
+          }
+        }, 120);
+      });
+
+      setTimeout(() => {
+        input.focus();
+      }, 10);
+
       return;
     }
 
@@ -979,9 +1090,11 @@
   // Annotation Toolbar Events
   annotationToolbar.querySelectorAll('.ag-tool-btn[data-tool]').forEach((btn) => {
     btn.addEventListener('click', () => {
+      commitActiveTextInput();
       annotationToolbar.querySelectorAll('.ag-tool-btn[data-tool]').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       currentTool = btn.getAttribute('data-tool');
+      screenshotCanvas.style.cursor = currentTool === 'text' ? 'text' : 'crosshair';
     });
   });
 
@@ -990,11 +1103,19 @@
       annotationToolbar.querySelectorAll('.ag-color-dot').forEach((d) => d.classList.remove('active'));
       dot.classList.add('active');
       currentColor = dot.getAttribute('data-color');
+      if (activeTextInput) {
+        activeTextInput.style.color = currentColor;
+        activeTextInput.dataset.color = currentColor;
+      }
     });
   });
 
   // Undo
   shadow.getElementById('agBtnUndo').addEventListener('click', () => {
+    if (activeTextInput) {
+      cancelActiveTextInput();
+      return;
+    }
     if (shapes.length > 0) {
       shapes.pop();
       redrawCanvas();
@@ -1003,6 +1124,7 @@
 
   // Clear
   shadow.getElementById('agBtnClear').addEventListener('click', () => {
+    cancelActiveTextInput();
     if (shapes.length > 0) {
       shapes = [];
       redrawCanvas();
@@ -1014,6 +1136,7 @@
 
   // Done Marking -> Open Feedback Modal with Screenshot
   shadow.getElementById('agBtnDoneScreenshot').addEventListener('click', () => {
+    commitActiveTextInput();
     currentScreenshotDataUrl = screenshotCanvas.toDataURL('image/png');
     exitScreenshotMode();
     selectedElement = null;
@@ -1027,13 +1150,24 @@
   });
 
   function onKeyDown(e) {
+    if (activeTextInput && activeTextInput.contains(document.activeElement)) {
+      return;
+    }
     if (e.key === 'Escape') {
+      if (activeTextInput) {
+        cancelActiveTextInput();
+        return;
+      }
       if (isScreenshotMode) exitScreenshotMode();
       if (isInspectMode) toggleInspectMode(false);
       closeModal();
     }
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && isScreenshotMode) {
       e.preventDefault();
+      if (activeTextInput) {
+        cancelActiveTextInput();
+        return;
+      }
       if (shapes.length > 0) {
         shapes.pop();
         redrawCanvas();
