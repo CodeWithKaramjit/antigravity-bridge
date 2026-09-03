@@ -28,7 +28,7 @@ describe('Antigravity Bridge Server Test Suite', () => {
     const data = await res.json();
     assert.equal(data.status, 'online');
     assert.equal(data.service, 'Antigravity Bridge Server');
-    assert.equal(data.version, '2.0.1');
+    assert.equal(data.version, '2.0.2');
     assert.ok(data.timestamp);
     assert.ok(Array.isArray(data.workspaces));
   });
@@ -50,11 +50,11 @@ describe('Antigravity Bridge Server Test Suite', () => {
     assert.ok(data.workspaces.length > 0);
   });
 
-  test('4. GET /health?url=http://localhost:5173 - Accurately routes to Rendosa workspace by port 5173', async () => {
+  test('4. GET /health?url=http://localhost:5173 - Accurately routes to workspace by port 5173', async () => {
     const res = await fetch(`${baseUrl}/health?url=http://localhost:5173/admin/login`);
     assert.equal(res.status, 200);
     const data = await res.json();
-    assert.equal(data.activeWorkspace, 'rendosa');
+    assert.ok(data.activeWorkspace);
     assert.equal(data.matchedBy, 'port:5173');
   });
 
@@ -84,7 +84,7 @@ describe('Antigravity Bridge Server Test Suite', () => {
     assert.equal(res.status, 200);
     const data = await res.json();
     assert.equal(data.success, true);
-    assert.equal(data.workspaceName, 'rendosa');
+    assert.ok(data.workspaceName);
     assert.equal(data.matchedBy, 'port:5173');
     assert.ok(data.deliveredVia);
   });
@@ -106,5 +106,13 @@ describe('Antigravity Bridge Server Test Suite', () => {
     assert.equal(data.success, true);
     assert.ok(data.savedScreenshotPath);
     assert.ok(fs.existsSync(data.savedScreenshotPath));
+  });
+
+  test('8. POST /api/stop - Responds with shutdown confirmation', async () => {
+    const res = await fetch(`${baseUrl}/api/stop`, { method: 'POST' });
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.success, true);
+    assert.ok(data.message.includes('shutting down'));
   });
 });

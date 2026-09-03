@@ -28,7 +28,7 @@ chrome.commands.onCommand.addListener(async (command) => {
   }
 });
 
-const EXTENSION_VERSION = '2.0.1';
+const EXTENSION_VERSION = '2.0.2';
 
 // Helper to inject and trigger inspector on a tab
 async function triggerInspector(tabId, mode = 'inspect') {

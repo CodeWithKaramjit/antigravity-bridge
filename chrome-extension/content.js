@@ -1272,16 +1272,16 @@
   // Listen for messages from background service worker
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'ping-version') {
-      sendResponse({ status: 'ok', version: '2.0.1' });
+      sendResponse({ status: 'ok', version: '2.0.2' });
       return true;
     }
     if (request.action === 'toggle-inspector') {
       if (request.mode === 'screenshot') {
         startScreenshotMode();
-        sendResponse({ status: 'screenshot_mode_activated', version: '2.0.1' });
+        sendResponse({ status: 'screenshot_mode_activated', version: '2.0.2' });
       } else {
         toggleInspectMode();
-        sendResponse({ status: isInspectMode ? 'activated' : 'deactivated', version: '2.0.1' });
+        sendResponse({ status: isInspectMode ? 'activated' : 'deactivated', version: '2.0.2' });
       }
       return true;
     }

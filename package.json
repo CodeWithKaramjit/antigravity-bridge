@@ -1,10 +1,14 @@
 {
   "name": "antigravity-bridge",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "",
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
+    "launcher:register": "node bin/register-native-host.js",
+    "launcher:start": "node bin/native-launcher.js start",
+    "launcher:stop": "node bin/native-launcher.js stop",
+    "launcher:status": "node bin/native-launcher.js status",
     "test": "node --test test/bridge.test.js"
   },
   "keywords": [],

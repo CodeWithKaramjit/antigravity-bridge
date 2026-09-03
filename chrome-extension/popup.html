@@ -3,183 +3,599 @@
 <head>
   <meta charset="UTF-8" />
   <title>Antigravity Inspector</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body {
-      width: 310px;
-      background: #090d16;
-      color: #f8fafc;
-      padding: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+    /* ──────────────────────────────────────
+       Design Tokens
+       ────────────────────────────────────── */
+    :root {
+      --bg-primary: #0c0f1a;
+      --bg-elevated: #111628;
+      --surface-glass: rgba(255, 255, 255, 0.035);
+      --surface-glass-hover: rgba(255, 255, 255, 0.06);
+      --border-subtle: rgba(255, 255, 255, 0.07);
+      --border-hover: rgba(255, 255, 255, 0.12);
+      --text-primary: #e8ecf4;
+      --text-secondary: #7a839b;
+      --text-tertiary: #505872;
+      --accent-indigo: #818cf8;
+      --accent-indigo-dim: rgba(129, 140, 248, 0.15);
+      --accent-emerald: #34d399;
+      --accent-emerald-dim: rgba(52, 211, 153, 0.12);
+      --accent-rose: #fb7185;
+      --accent-rose-dim: rgba(251, 113, 133, 0.10);
+      --accent-sky: #38bdf8;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
+
+    /* ──────────────────────────────────────
+       Reset & Base
+       ────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 340px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font);
+      font-size: 12px;
+      line-height: 1.5;
+      padding: 18px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ──────────────────────────────────────
+       Animations
+       ────────────────────────────────────── */
+    @keyframes pulse-ring {
+      0% { transform: scale(1); opacity: 0.5; }
+      70% { transform: scale(2.2); opacity: 0; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes dot-breathe {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .animate-in {
+      animation: fade-up 0.35s var(--transition) both;
+    }
+    .animate-in:nth-child(2) { animation-delay: 0.06s; }
+    .animate-in:nth-child(3) { animation-delay: 0.12s; }
+    .animate-in:nth-child(4) { animation-delay: 0.18s; }
+    .animate-in:nth-child(5) { animation-delay: 0.24s; }
+
+    /* ──────────────────────────────────────
+       Header
+       ────────────────────────────────────── */
     .header {
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin-bottom: 14px;
+      gap: 12px;
+      margin-bottom: 16px;
     }
     .logo-box {
-      width: 30px;
-      height: 30px;
+      width: 34px;
+      height: 34px;
       background: linear-gradient(135deg, #6366f1, #06b6d4);
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       display: flex;
       align-items: center;
       justify-content: center;
       color: #fff;
+      flex-shrink: 0;
+      box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25);
+    }
+    .header-text {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .title {
       font-size: 14px;
       font-weight: 700;
-      letter-spacing: 0.03em;
-      color: #f1f5f9;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+    }
+    .version-badge {
+      font-size: 9px;
+      font-weight: 600;
+      background: var(--accent-indigo-dim);
+      color: var(--accent-indigo);
+      border: 1px solid rgba(129, 140, 248, 0.25);
+      border-radius: 4px;
+      padding: 1px 6px;
+      letter-spacing: 0.02em;
     }
     .subtitle {
       font-size: 11px;
-      color: #94a3b8;
+      color: var(--text-secondary);
+      font-weight: 400;
     }
-    .status-card {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
-      padding: 10px 12px;
-      margin-bottom: 14px;
-    }
-    .status-row {
+
+    /* ──────────────────────────────────────
+       Status Indicator (Prominent)
+       ────────────────────────────────────── */
+    .status-banner {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 12px;
+      background: var(--surface-glass);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      transition: border-color var(--transition), background var(--transition);
     }
+    .status-banner.is-online {
+      border-color: rgba(52, 211, 153, 0.2);
+      background: rgba(52, 211, 153, 0.04);
+    }
+    .status-banner.is-offline {
+      border-color: rgba(251, 113, 133, 0.15);
+      background: rgba(251, 113, 133, 0.03);
+    }
+
     .status-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Animated dot with pulse ring */
+    .status-dot-wrap {
+      position: relative;
+      width: 10px;
+      height: 10px;
+      flex-shrink: 0;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--text-tertiary);
+      position: relative;
+      z-index: 1;
+      transition: background var(--transition), box-shadow var(--transition);
+    }
+    .status-dot.online {
+      background: var(--accent-emerald);
+      box-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
+    }
+    .status-dot.online::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      animation: pulse-ring 2s ease-out infinite;
+    }
+    .status-dot.offline {
+      background: var(--accent-rose);
+      box-shadow: 0 0 6px rgba(251, 113, 133, 0.4);
+    }
+    .status-dot.checking {
+      background: var(--text-secondary);
+      animation: dot-breathe 1.2s ease-in-out infinite;
+    }
+
+    .status-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      transition: color var(--transition);
+    }
+
+    .status-right {
       display: flex;
       align-items: center;
       gap: 8px;
     }
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #64748b;
+
+    .bridge-tag {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 10px;
+      font-weight: 500;
+      background: var(--accent-indigo-dim);
+      color: var(--accent-indigo);
+      border: 1px solid rgba(129, 140, 248, 0.2);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      letter-spacing: 0.02em;
     }
-    .dot.online {
-      background: #10b981;
-      box-shadow: 0 0 8px #10b981;
-    }
-    .dot.offline {
-      background: #f43f5e;
-      box-shadow: 0 0 8px #f43f5e;
-    }
-    .status-text {
+
+    /* Stop button — small pill */
+    .btn-stop {
+      font-family: var(--font);
+      font-size: 10px;
       font-weight: 600;
-      color: #e2e8f0;
-    }
-    .port-tag {
-      font-family: monospace;
-      font-size: 11px;
-      background: rgba(99, 102, 241, 0.15);
-      border: 1px solid rgba(99, 102, 241, 0.3);
-      padding: 2px 6px;
-      border-radius: 4px;
-      color: #a5b4fc;
-    }
-    .btn-inspect {
-      width: 100%;
-      background: linear-gradient(135deg, #6366f1, #4f46e5);
-      border: none;
-      color: #ffffff;
-      padding: 11px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
+      background: var(--accent-rose-dim);
+      color: var(--accent-rose);
+      border: 1px solid rgba(251, 113, 133, 0.2);
+      padding: 3px 10px;
+      border-radius: var(--radius-sm);
       cursor: pointer;
+      transition: all var(--transition);
+      display: none;
+    }
+    .btn-stop:hover {
+      background: rgba(251, 113, 133, 0.2);
+      border-color: rgba(251, 113, 133, 0.35);
+      color: #fff;
+    }
+
+    /* ──────────────────────────────────────
+       Glass Info Cards
+       ────────────────────────────────────── */
+    .info-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .info-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface-glass);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      transition: border-color var(--transition), background var(--transition);
+    }
+    .info-card:hover {
+      border-color: var(--border-hover);
+      background: var(--surface-glass-hover);
+    }
+    .info-card-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .info-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .info-icon.tab-icon {
+      background: rgba(56, 189, 248, 0.1);
+      color: var(--accent-sky);
+    }
+    .info-icon.workspace-icon {
+      background: var(--accent-emerald-dim);
+      color: var(--accent-emerald);
+    }
+    .info-card-text {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+    }
+    .info-card-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .info-card-value {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .info-badge {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .badge-port {
+      background: rgba(56, 189, 248, 0.1);
+      color: var(--accent-sky);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+    .badge-match {
+      background: var(--accent-emerald-dim);
+      color: var(--accent-emerald);
+      border: 1px solid rgba(52, 211, 153, 0.2);
+    }
+
+    /* ──────────────────────────────────────
+       Action Buttons
+       ────────────────────────────────────── */
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .btn-action {
+      width: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
-      transition: all 0.15s ease;
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all var(--transition);
+      position: relative;
+      overflow: hidden;
     }
-    .btn-inspect:hover {
-      background: linear-gradient(135deg, #4f46e5, #4338ca);
-      transform: translateY(-1px);
+    .btn-action::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity var(--transition);
+      background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
     }
-    .btn-inspect:disabled {
-      opacity: 0.5;
+    .btn-action:hover::before {
+      opacity: 1;
+    }
+    .btn-action:active {
+      transform: scale(0.98);
+    }
+    .btn-action:disabled {
+      opacity: 0.4;
       cursor: not-allowed;
       transform: none;
     }
-    .shortcut-tip {
-      margin-top: 12px;
-      text-align: center;
+    .btn-action:disabled::before { display: none; }
+
+    /* Primary — Screenshot */
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 6px 24px rgba(99, 102, 241, 0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+      transform: translateY(-1px);
+    }
+
+    /* Secondary — Inspect */
+    .btn-secondary {
+      background: var(--surface-glass);
+      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+      box-shadow: none;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .btn-secondary:hover {
+      background: var(--surface-glass-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-1px);
+    }
+
+    /* Start Bridge — emerald */
+    .btn-start {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+      margin-top: 8px;
+    }
+    .btn-start:hover {
+      box-shadow: 0 6px 24px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+      transform: translateY(-1px);
+    }
+    .btn-start .spinner {
+      display: none;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    .btn-start.is-loading .spinner { display: inline-block; }
+    .btn-start.is-loading svg { display: none; }
+
+    /* ──────────────────────────────────────
+       Offline Warning Card
+       ────────────────────────────────────── */
+    .offline-card {
+      display: none;
+      background: rgba(251, 113, 133, 0.05);
+      border: 1px solid rgba(251, 113, 133, 0.15);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      margin-top: 2px;
+    }
+    .offline-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .offline-card-header svg {
+      color: var(--accent-rose);
+      flex-shrink: 0;
+    }
+    .offline-card-header span {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent-rose);
+    }
+    .offline-card-body {
       font-size: 11px;
-      color: #94a3b8;
+      color: rgba(251, 113, 133, 0.7);
+      line-height: 1.5;
+    }
+    .offline-card-body strong {
+      color: var(--accent-rose);
+    }
+
+    /* Help message inside offline card */
+    .help-msg {
+      display: none;
+      font-size: 10px;
+      color: #fbbf24;
+      margin-top: 8px;
+      line-height: 1.4;
+      background: rgba(251, 191, 36, 0.08);
+      border: 1px solid rgba(251, 191, 36, 0.15);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+    }
+
+    /* ──────────────────────────────────────
+       Shortcut Footer
+       ────────────────────────────────────── */
+    .shortcut-bar {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      padding-top: 2px;
+      margin-bottom: 14px;
+    }
+    .shortcut-item {
+      font-size: 10px;
+      color: var(--text-tertiary);
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
     kbd {
-      background: #1e293b;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      padding: 2px 6px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 10px;
+      background: var(--bg-elevated);
+      color: var(--accent-sky);
+      border: 1px solid var(--border-subtle);
       border-radius: 4px;
-      font-family: monospace;
-      font-size: 11px;
-      color: #38bdf8;
-    }
-    .offline-warning {
-      display: none;
-      margin-top: 10px;
-      font-size: 11px;
-      color: #fb7185;
-      background: rgba(244, 63, 94, 0.1);
-      border: 1px solid rgba(244, 63, 94, 0.2);
-      padding: 8px;
-      border-radius: 6px;
-      line-height: 1.4;
+      padding: 2px 6px;
+      line-height: 1;
     }
   </style>
 </head>
 <body>
-  <div class="header">
+
+  <!-- ─── Header ─── -->
+  <div class="header animate-in">
     <div class="logo-box">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
         <polyline points="2 17 12 22 22 17"></polyline>
         <polyline points="2 12 12 17 22 12"></polyline>
       </svg>
     </div>
-    <div>
-      <div style="display: flex; align-items: center; gap: 6px;">
-        <div class="title">Antigravity Inspector</div>
-        <span style="font-size: 10px; background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 4px; padding: 1px 5px; font-weight: 700;">v2.0.1</span>
+    <div class="header-text">
+      <div class="header-top">
+        <span class="title">Antigravity Inspector</span>
+        <span class="version-badge">v2.0.2</span>
       </div>
-      <div class="subtitle">AI UI Code Reflector</div>
+      <span class="subtitle">AI-Powered UI Code Reflector</span>
     </div>
   </div>
 
-  <div class="status-card">
-    <div class="status-row">
-      <div class="status-left">
-        <span class="dot" id="statusDot"></span>
-        <span class="status-text" id="statusText">Checking Bridge...</span>
+  <!-- ─── Status Banner ─── -->
+  <div class="status-banner animate-in" id="statusBanner">
+    <div class="status-left">
+      <div class="status-dot-wrap">
+        <div class="status-dot checking" id="statusDot"></div>
       </div>
-      <span class="port-tag">PORT 4000</span>
+      <span class="status-label" id="statusText">Checking Bridge…</span>
     </div>
-    <div id="workspaceRow" style="display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 11px; color: #94a3b8; justify-content: space-between; align-items: center;">
-      <span>Active Project:</span>
-      <b id="targetWorkspaceBadge" style="color: #38bdf8; font-weight: 600;">Detecting...</b>
+    <div class="status-right">
+      <button class="btn-stop" id="btnStopBridge" title="Stop Bridge Server">Stop</button>
+      <span class="bridge-tag" id="bridgeTag" title="Bridge Relay connects your browser to Antigravity IDE">:4000</span>
     </div>
   </div>
 
-  <div style="display: flex; flex-direction: column; gap: 8px;">
-    <button class="btn-inspect" id="btnScreenshot" style="background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+  <!-- ─── Info Cards ─── -->
+  <div class="info-cards">
+    <!-- Active Tab Card -->
+    <div class="info-card animate-in">
+      <div class="info-card-left">
+        <div class="info-icon tab-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+        </div>
+        <div class="info-card-text">
+          <span class="info-card-label">Active Tab</span>
+          <span class="info-card-value" id="tabHost" title="">Detecting…</span>
+        </div>
+      </div>
+      <span class="info-badge badge-port" id="tabPortBadge">…</span>
+    </div>
+
+    <!-- Workspace Card (hidden until detected) -->
+    <div class="info-card animate-in" id="workspaceRow" style="display: none;">
+      <div class="info-card-left">
+        <div class="info-icon workspace-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <circle cx="12" cy="12" r="4"></circle>
+            <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line>
+            <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line>
+            <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line>
+            <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line>
+          </svg>
+        </div>
+        <div class="info-card-text">
+          <span class="info-card-label">Target Workspace</span>
+          <b class="info-card-value" id="targetWorkspaceBadge">Detecting…</b>
+        </div>
+      </div>
+      <span class="info-badge badge-match" id="matchBadge">Auto-linked</span>
+    </div>
+  </div>
+
+  <!-- ─── Action Buttons ─── -->
+  <div class="actions animate-in">
+    <button class="btn-action btn-primary" id="btnScreenshot" disabled>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
         <circle cx="12" cy="13" r="4"></circle>
       </svg>
       Screenshot &amp; Annotate
     </button>
 
-    <button class="btn-inspect" id="btnInspect" style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: none; color: #cbd5e1;">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <button class="btn-action btn-secondary" id="btnInspect" disabled>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"></circle>
         <circle cx="12" cy="12" r="6"></circle>
         <circle cx="12" cy="12" r="2"></circle>
@@ -188,13 +604,36 @@
     </button>
   </div>
 
-  <div class="shortcut-tip" style="display: flex; justify-content: space-around; gap: 4px; font-size: 10px; margin-top: 12px;">
-    <span>Screenshot: <kbd>Option + S</kbd></span>
-    <span>Inspect: <kbd>Option + A</kbd></span>
+  <!-- ─── Shortcut Footer ─── -->
+  <div class="shortcut-bar animate-in">
+    <span class="shortcut-item">Screenshot <kbd>⌥ S</kbd></span>
+    <span class="shortcut-item">Inspect <kbd>⌥ A</kbd></span>
   </div>
 
-  <div class="offline-warning" id="offlineWarning">
-    Bridge Server not detected. Make sure <code>node server.js</code> is running on port 4000.
+  <!-- ─── Offline Warning (hidden by default) ─── -->
+  <div class="offline-card" id="offlineWarning">
+    <div class="offline-card-header">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+        <line x1="12" y1="9" x2="12" y2="13"></line>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+      </svg>
+      <span>Bridge Server Offline</span>
+    </div>
+    <div class="offline-card-body">
+      Bridge server routes feedback from port <strong id="warnTabPort">:5174</strong> into Antigravity IDE.
+    </div>
+
+    <!-- 1-Click Start Bridge Button -->
+    <button class="btn-action btn-start" id="btnStartBridge">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+      </svg>
+      <span class="spinner"></span>
+      <span id="startBtnText">Start Bridge Server</span>
+    </button>
+
+    <div class="help-msg" id="warnHelpMsg"></div>
   </div>
 
   <script src="popup.js"></script>

@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Antigravity Visual Inspector",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Inspect any webpage element and send UI feedback directly to Antigravity IDE for instant code changes.",
   "permissions": [
     "activeTab",
-    "scripting"
+    "scripting",
+    "nativeMessaging"
   ],
   "host_permissions": [
     "http://localhost:4000/*",

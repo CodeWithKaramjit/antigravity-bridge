@@ -7,7 +7,7 @@ const { execSync, execFile } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-const VERSION = '2.0.1';
+const VERSION = '2.0.2';
 const AGENTAPI_PATH = process.env.AGENTAPI_PATH || path.join(os.homedir(), '.gemini/antigravity-ide/bin/agentapi');
 
 app.use(cors());
@@ -261,6 +261,15 @@ app.get('/api/workspaces', (req, res) => {
     success: true,
     workspaces
   });
+});
+
+// Graceful shutdown endpoint
+app.post('/api/stop', (req, res) => {
+  res.json({ success: true, message: 'Antigravity Bridge Server shutting down.' });
+  setTimeout(() => {
+    console.log('[Antigravity Bridge] Server stopped via API request.');
+    process.exit(0);
+  }, 100);
 });
 
 app.get('/', (req, res) => {
