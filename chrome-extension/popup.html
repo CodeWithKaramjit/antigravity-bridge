@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Antigravity Inspector</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body {
+      width: 310px;
+      background: #090d16;
+      color: #f8fafc;
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .logo-box {
+      width: 30px;
+      height: 30px;
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+    .title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      color: #f1f5f9;
+    }
+    .subtitle {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .status-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #64748b;
+    }
+    .dot.online {
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+    .dot.offline {
+      background: #f43f5e;
+      box-shadow: 0 0 8px #f43f5e;
+    }
+    .status-text {
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+    .port-tag {
+      font-family: monospace;
+      font-size: 11px;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #a5b4fc;
+    }
+    .btn-inspect {
+      width: 100%;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      border: none;
+      color: #ffffff;
+      padding: 11px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+      transition: all 0.15s ease;
+    }
+    .btn-inspect:hover {
+      background: linear-gradient(135deg, #4f46e5, #4338ca);
+      transform: translateY(-1px);
+    }
+    .btn-inspect:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .shortcut-tip {
+      margin-top: 12px;
+      text-align: center;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    kbd {
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #38bdf8;
+    }
+    .offline-warning {
+      display: none;
+      margin-top: 10px;
+      font-size: 11px;
+      color: #fb7185;
+      background: rgba(244, 63, 94, 0.1);
+      border: 1px solid rgba(244, 63, 94, 0.2);
+      padding: 8px;
+      border-radius: 6px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo-box">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+        <polyline points="2 17 12 22 22 17"></polyline>
+        <polyline points="2 12 12 17 22 12"></polyline>
+      </svg>
+    </div>
+    <div>
+      <div class="title">Antigravity Inspector</div>
+      <div class="subtitle">AI UI Code Reflector</div>
+    </div>
+  </div>
+
+  <div class="status-card">
+    <div class="status-row">
+      <div class="status-left">
+        <span class="dot" id="statusDot"></span>
+        <span class="status-text" id="statusText">Checking Bridge...</span>
+      </div>
+      <span class="port-tag">PORT 4000</span>
+    </div>
+    <div id="workspaceRow" style="display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 11px; color: #94a3b8; justify-content: space-between; align-items: center;">
+      <span>Active Project:</span>
+      <b id="targetWorkspaceBadge" style="color: #38bdf8; font-weight: 600;">Detecting...</b>
+    </div>
+  </div>
+
+  <button class="btn-inspect" id="btnInspect">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"></circle>
+      <circle cx="12" cy="12" r="6"></circle>
+      <circle cx="12" cy="12" r="2"></circle>
+    </svg>
+    Inspect Current Page
+  </button>
+
+  <div class="shortcut-tip">
+    Mac Shortcut: <kbd>Option + A</kbd>
+  </div>
+
+  <div class="offline-warning" id="offlineWarning">
+    Bridge Server not detected. Make sure <code>node server.js</code> is running on port 4000.
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
