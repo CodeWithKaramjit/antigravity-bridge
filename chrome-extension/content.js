@@ -9,12 +9,17 @@
 (() => {
   'use strict';
 
-  // Toggle if already initialized
-  if (window.__antigravityInspectorInitialized) {
-    if (window.__antigravityToggleInspector) {
-      window.__antigravityToggleInspector();
-    }
-    return;
+  // Clean up any existing inspector host and styles from previous versions
+  if (window.__antigravityCleanup) {
+    try { window.__antigravityCleanup(); } catch (e) {}
+  }
+  const oldHost = document.getElementById('antigravity-inspector-host');
+  if (oldHost) {
+    try { oldHost.remove(); } catch (e) {}
+  }
+  const oldOverrides = document.getElementById('ag-inspect-overrides');
+  if (oldOverrides) {
+    try { oldOverrides.remove(); } catch (e) {}
   }
   window.__antigravityInspectorInitialized = true;
 
@@ -1266,14 +1271,19 @@
 
   // Listen for messages from background service worker
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'ping-version') {
+      sendResponse({ status: 'ok', version: '2.0.1' });
+      return true;
+    }
     if (request.action === 'toggle-inspector') {
       if (request.mode === 'screenshot') {
         startScreenshotMode();
-        sendResponse({ status: 'screenshot_mode_activated' });
+        sendResponse({ status: 'screenshot_mode_activated', version: '2.0.1' });
       } else {
         toggleInspectMode();
-        sendResponse({ status: isInspectMode ? 'activated' : 'deactivated' });
+        sendResponse({ status: isInspectMode ? 'activated' : 'deactivated', version: '2.0.1' });
       }
+      return true;
     }
   });
 
@@ -1283,6 +1293,10 @@
   shadow.getElementById('agBtnCancel').addEventListener('click', closeModal);
   shadow.getElementById('agBtnSend').addEventListener('click', submitFeedback);
 
-  // Automatically activate when freshly injected
-  toggleInspectMode(true);
+  // Global cleanup registration for hot-reloads
+  window.__antigravityCleanup = () => {
+    try { container.remove(); } catch (e) {}
+    try { removePageOverrideStyles(); } catch (e) {}
+    window.removeEventListener('keydown', onKeyDown, true);
+  };
 })();

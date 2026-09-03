@@ -15,22 +15,40 @@ chrome.commands.onCommand.addListener(async (command) => {
   }
 });
 
+const EXTENSION_VERSION = '2.0.1';
+
 // Helper to inject and trigger inspector on a tab
 async function triggerInspector(tabId, mode = 'inspect') {
+  let needsInjection = false;
   try {
-    await chrome.tabs.sendMessage(tabId, { action: 'toggle-inspector', mode });
+    const res = await chrome.tabs.sendMessage(tabId, { action: 'ping-version' });
+    if (!res || res.version !== EXTENSION_VERSION) {
+      needsInjection = true;
+    }
   } catch (err) {
+    needsInjection = true;
+  }
+
+  if (needsInjection) {
     try {
       await chrome.scripting.executeScript({
         target: { tabId },
         files: ['content.js']
       });
-      setTimeout(() => {
-        chrome.tabs.sendMessage(tabId, { action: 'toggle-inspector', mode }).catch(() => {});
-      }, 100);
+      // Small delay to allow shadow DOM mount
+      await new Promise(r => setTimeout(r, 60));
     } catch (injectErr) {
       console.error('[Antigravity Inspector] Injection failed:', injectErr);
+      return;
     }
+  }
+
+  try {
+    await chrome.tabs.sendMessage(tabId, { action: 'toggle-inspector', mode });
+  } catch (e) {
+    setTimeout(() => {
+      chrome.tabs.sendMessage(tabId, { action: 'toggle-inspector', mode }).catch(() => {});
+    }, 120);
   }
 }
 
