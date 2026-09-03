@@ -11,7 +11,6 @@ const AGENTAPI_PATH = process.env.AGENTAPI_PATH || path.join(os.homedir(), '.gem
 
 app.use(cors());
 app.use(express.json({ limit: '25mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Cache for conversation metadata to ensure fast sub-millisecond responses
 let conversationCache = {
