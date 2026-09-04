@@ -5,6 +5,12 @@
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Mini XSS-safe HTML escaper for error messages
+  function esc(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
   const statusBanner = document.getElementById('statusBanner');
@@ -174,7 +180,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (chrome.runtime.lastError) {
               console.warn('[Bridge Launcher] Native messaging notice:', chrome.runtime.lastError.message);
               if (warnHelpMsg) {
-                warnHelpMsg.innerHTML = `⚠️ <b>Notice:</b> ${chrome.runtime.lastError.message}<br>Agar first time hai toh <b>chrome://extensions</b> par <b>Reload (↻)</b> karein, ya folder me <b>Start Bridge.command</b> chalayein.`;
+                warnHelpMsg.innerHTML = `⚠️ <b>Notice:</b> ${esc(chrome.runtime.lastError.message)}<br>Agar first time hai toh <b>chrome://extensions</b> par <b>Reload (↻)</b> karein, ya folder me <b>Start Bridge.command</b> chalayein.`;
                 warnHelpMsg.style.display = 'block';
               }
             }
@@ -182,7 +188,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) {
           console.error('[Bridge Launcher] Error:', err);
           if (warnHelpMsg) {
-            warnHelpMsg.innerHTML = `⚠️ <b>Error:</b> ${err.message}. Please reload extension at <b>chrome://extensions</b>.`;
+            warnHelpMsg.innerHTML = `⚠️ <b>Error:</b> ${esc(err.message)}. Please reload extension at <b>chrome://extensions</b>.`;
             warnHelpMsg.style.display = 'block';
           }
         }

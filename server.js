@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { execSync, execFileSync, execFile } = require('child_process');
+const { execFileSync, execFile } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -46,6 +46,17 @@ function isRateLimited(ip) {
   rateLimitMap.set(key, timestamps);
   return timestamps.length > RATE_LIMIT_MAX;
 }
+
+// Periodic cleanup: remove stale entries every 5 minutes to prevent unbounded memory growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamps] of rateLimitMap) {
+    const active = timestamps.filter(t => t > now - RATE_LIMIT_WINDOW_MS);
+    if (active.length === 0) {
+      rateLimitMap.delete(key);
+    }
+  }
+}, 300000).unref();
 
 // Cache for conversation metadata to ensure fast sub-millisecond responses
 let conversationCache = {
@@ -118,19 +129,23 @@ function getWorkspaceFromHerdValet(hostname) {
  */
 function getCwdForPort(port) {
   if (!port) return null;
+  const safePort = String(parseInt(port, 10));
+  if (safePort === 'NaN') return null;
+
   try {
-    const lsofPids = execSync(`lsof -i :${port} -sTCP:LISTEN -n -P -F p`, {
+    const lsofPids = execFileSync('lsof', ['-i', `:${safePort}`, '-sTCP:LISTEN', '-n', '-P', '-F', 'p'], {
       encoding: 'utf8',
       timeout: 2000,
       stdio: ['ignore', 'pipe', 'ignore']
     });
     const pids = lsofPids.split('\n')
       .filter(line => line.startsWith('p'))
-      .map(line => line.slice(1).trim());
+      .map(line => line.slice(1).trim())
+      .filter(p => /^\d+$/.test(p));
 
     for (const pid of pids) {
       try {
-        const cwdOut = execSync(`lsof -a -p ${pid} -d cwd -Fn`, {
+        const cwdOut = execFileSync('lsof', ['-a', '-p', pid, '-d', 'cwd', '-Fn'], {
           encoding: 'utf8',
           timeout: 2000,
           stdio: ['ignore', 'pipe', 'ignore']
