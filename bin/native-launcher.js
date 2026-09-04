@@ -23,6 +23,16 @@ const PID_FILE = path.join(PROJECT_DIR, '.bridge.pid');
 const LOG_FILE = path.join(PROJECT_DIR, '.bridge.log');
 const DEBUG_LOG = '/tmp/antigravity-native-host.log';
 
+// Rotate debug log: keep last 200 lines if file exceeds 500 lines
+try {
+  if (fs.existsSync(DEBUG_LOG)) {
+    const lines = fs.readFileSync(DEBUG_LOG, 'utf8').split('\n');
+    if (lines.length > 500) {
+      fs.writeFileSync(DEBUG_LOG, lines.slice(-200).join('\n'), 'utf8');
+    }
+  }
+} catch (e) {}
+
 function logDebug(msg) {
   try {
     fs.appendFileSync(DEBUG_LOG, `[Node ${new Date().toISOString()}] ${msg}\n`);

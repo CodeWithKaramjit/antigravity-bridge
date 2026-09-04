@@ -1,8 +1,8 @@
 {
   "name": "antigravity-bridge",
   "version": "2.0.2",
-  "description": "",
-  "main": "index.js",
+  "description": "Chrome Extension bridge server that connects browser UI feedback to Antigravity IDE",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "launcher:register": "node bin/register-native-host.js",

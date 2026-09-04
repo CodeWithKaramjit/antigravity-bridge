@@ -1155,7 +1155,8 @@
   });
 
   function onKeyDown(e) {
-    if (activeTextInput && activeTextInput.contains(document.activeElement)) {
+    const focusedEl = shadow.activeElement || document.activeElement;
+    if (activeTextInput && (activeTextInput === focusedEl || activeTextInput.contains(focusedEl))) {
       return;
     }
     if (e.key === 'Escape') {
