@@ -42,10 +42,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         tabHostname = u.host || u.hostname;
         if (u.port) {
           tabPort = u.port;
-        } else if (u.protocol === 'http:') {
-          tabPort = '80';
-        } else if (u.protocol === 'https:') {
-          tabPort = '443';
         }
       } catch (e) {
         tabHostname = currentTabUrl.slice(0, 20);
@@ -54,6 +50,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch (e) {}
 
   // ─── Update tab info immediately in UI ───
+  const isLocalDomain = tabHostname && (
+    tabHostname.endsWith('.test') ||
+    tabHostname.endsWith('.local') ||
+    tabHostname.endsWith('.site') ||
+    tabHostname.endsWith('.dev') ||
+    tabHostname.includes('localhost')
+  );
+
   if (tabHost) {
     tabHost.textContent = tabHostname || 'Internal Page';
     tabHost.title = currentTabUrl;
@@ -62,12 +66,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (tabPort) {
       tabPortBadge.textContent = `Port ${tabPort}`;
       tabPortBadge.title = `Auto-detected web server port: ${tabPort}`;
+    } else if (isLocalDomain) {
+      tabPortBadge.textContent = 'Local Domain';
+      tabPortBadge.title = `Local development domain: ${tabHostname}`;
     } else {
-      tabPortBadge.textContent = 'No Port';
+      tabPortBadge.textContent = 'Web App';
     }
   }
   if (warnTabPort) {
-    warnTabPort.textContent = tabPort ? `:${tabPort}` : 'your web app';
+    warnTabPort.textContent = tabPort ? `:${tabPort}` : (tabHostname || 'your web app');
   }
 
   // Check if current tab is a restricted browser internal page

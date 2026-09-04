@@ -8,7 +8,27 @@ const { execFileSync, execFile } = require('child_process');
 const app = express();
 const PORT = process.env.PORT || 4000;
 const VERSION = '2.0.2';
-const AGENTAPI_PATH = process.env.AGENTAPI_PATH || path.join(os.homedir(), '.gemini/antigravity-ide/bin/agentapi');
+
+function resolveAgentApiPath() {
+  if (process.env.AGENTAPI_PATH && fs.existsSync(process.env.AGENTAPI_PATH)) {
+    return process.env.AGENTAPI_PATH;
+  }
+  const defaultPath = path.join(os.homedir(), '.gemini/antigravity-ide/bin/agentapi');
+  if (fs.existsSync(defaultPath)) {
+    return defaultPath;
+  }
+  try {
+    const whichOut = execFileSync('which', ['agentapi'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    }).trim();
+    if (whichOut && fs.existsSync(whichOut)) {
+      return whichOut;
+    }
+  } catch (e) {}
+  return defaultPath;
+}
+const AGENTAPI_PATH = resolveAgentApiPath();
 
 app.use(cors());
 app.use(express.json({ limit: '25mb' }));
@@ -73,8 +93,6 @@ function getPortFromUrl(urlStr) {
   try {
     const url = new URL(urlStr);
     if (url.port) return parseInt(url.port, 10);
-    if (url.protocol === 'http:') return 80;
-    if (url.protocol === 'https:') return 443;
   } catch (e) {
     const match = urlStr.match(/:([0-9]{2,5})/);
     if (match) return parseInt(match[1], 10);
@@ -286,10 +304,13 @@ function resolveTarget(pageUrl, conversationId) {
   function matchCwdToWorkspace(resolvedPath, matchLabel) {
     if (!resolvedPath) return null;
     const normalizedCwd = path.resolve(resolvedPath);
+    // Ignore root or user home directory as process CWD to prevent false-positive broad matches
+    if (normalizedCwd === '/' || normalizedCwd === os.homedir()) return null;
+
     const matchingConvs = convs.filter(c => {
       if (!c.workspacePath) return false;
       const normalizedWs = path.resolve(c.workspacePath);
-      return normalizedCwd.startsWith(normalizedWs) || normalizedWs.startsWith(normalizedCwd);
+      return normalizedCwd.startsWith(normalizedWs) || (normalizedWs.startsWith(normalizedCwd) && normalizedCwd.length > 5);
     }).sort((a, b) => b.mtimeMs - a.mtimeMs);
 
     if (matchingConvs.length > 0) {
@@ -619,8 +640,19 @@ app.post('/api/feedback', (req, res) => {
 });
 
 if (require.main === module) {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`Antigravity Bridge Server running on http://localhost:${PORT}`);
+  });
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\n[Antigravity Bridge] Error: Port ${PORT} is already in use.`);
+      console.error(`Another process or previous bridge instance is running on http://localhost:${PORT}.`);
+      console.error(`To stop it: double-click "Stop Bridge.command" or run "npm run launcher:stop".\n`);
+      process.exit(1);
+    } else {
+      console.error('[Antigravity Bridge] Server error:', err);
+      process.exit(1);
+    }
   });
 }
 

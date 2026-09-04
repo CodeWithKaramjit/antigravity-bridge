@@ -4,7 +4,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-5.x-blue.svg)](https://expressjs.com/)
 [![Chrome Extension](https://img.shields.io/badge/Chrome_Extension-Manifest_V3-orange.svg)](https://developer.chrome.com/docs/extensions/)
-[![Tests](https://img.shields.io/badge/Tests-9%20Passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-10%20Passed-brightgreen.svg)]()
 
 A seamless bridge connecting your local web projects directly to **Google Antigravity IDE**. 
 
@@ -154,8 +154,9 @@ Sample output:
 ✔ 6. POST /api/feedback - Forwards UI feedback to target project chat with plan requirement
 ✔ 7. POST /api/feedback - Saves base64 annotated screenshot to disk and forwards to IDE
 ✔ 8. GET /health?url=http://justice-for-punjab.test - Routes to workspace by domain slug (Docker/Apache/custom domains)
-✔ 9. POST /api/stop - Responds with shutdown confirmation
-ℹ pass 9, fail 0
+✔ 9. CWD Guard - Never matches root / or user home directory as workspace CWD
+✔ 10. POST /api/stop - Responds with shutdown confirmation
+ℹ pass 10, fail 0
 ```
 
 ---

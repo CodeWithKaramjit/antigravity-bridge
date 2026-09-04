@@ -789,13 +789,25 @@
     if (isInspectMode) toggleInspectMode(false);
     isScreenshotMode = true;
 
-    // Request tab screenshot from background service worker
-    chrome.runtime.sendMessage({ action: 'capture-tab' }, (response) => {
-      if (!response || !response.success || !response.dataUrl) {
-        showToast(`Screenshot capture failed: ${response?.error || 'Unknown error'}`, true);
-        exitScreenshotMode();
-        return;
-      }
+    // Guard against extension context invalidation (e.g. extension reloaded in chrome://extensions)
+    if (!chrome.runtime?.id) {
+      showToast('Extension was reloaded. Please refresh this webpage to reconnect inspector.', true);
+      exitScreenshotMode();
+      return;
+    }
+
+    try {
+      chrome.runtime.sendMessage({ action: 'capture-tab' }, (response) => {
+        if (chrome.runtime?.lastError) {
+          showToast(`Capture notice: ${chrome.runtime.lastError.message}`, true);
+          exitScreenshotMode();
+          return;
+        }
+        if (!response || !response.success || !response.dataUrl) {
+          showToast(`Screenshot capture failed: ${response?.error || 'Unknown error'}`, true);
+          exitScreenshotMode();
+          return;
+        }
 
       screenshotBgImage = new Image();
       screenshotBgImage.onload = () => {
@@ -812,7 +824,11 @@
       };
       screenshotBgImage.src = response.dataUrl;
     });
+  } catch (err) {
+    showToast('Extension was reloaded. Please refresh this page to re-attach inspector.', true);
+    exitScreenshotMode();
   }
+}
 
   let activeTextInput = null;
 

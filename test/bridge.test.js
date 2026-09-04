@@ -117,7 +117,16 @@ describe('Antigravity Bridge Server Test Suite', () => {
     assert.ok(data.activeWorkspace.toLowerCase().includes('justice'));
   });
 
-  test('9. POST /api/stop - Responds with shutdown confirmation', async () => {
+  test('9. CWD Guard - Never matches root / or user home directory as workspace CWD', async () => {
+    const res = await fetch(`${baseUrl}/health`);
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.notEqual(data.activeWorkspacePath, '/');
+    const os = require('os');
+    assert.notEqual(data.activeWorkspacePath, os.homedir());
+  });
+
+  test('10. POST /api/stop - Responds with shutdown confirmation', async () => {
     const res = await fetch(`${baseUrl}/api/stop`, { method: 'POST' });
     assert.equal(res.status, 200);
     const data = await res.json();
