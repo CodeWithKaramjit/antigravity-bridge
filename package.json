@@ -9,7 +9,8 @@
     "launcher:start": "node bin/native-launcher.js start",
     "launcher:stop": "node bin/native-launcher.js stop",
     "launcher:status": "node bin/native-launcher.js status",
-    "test": "node --test test/bridge.test.js"
+    "lint": "node --check server.js && node --check lib/ide-status.js && node --check lib/agentapi-env.js && node --check bin/native-launcher.js && node --check bin/register-native-host.js && node --check chrome-extension/background.js && node --check chrome-extension/popup.js && node --check chrome-extension/content.js && node --check test/bridge.test.js && node --check test/agentapi-env.test.js",
+    "test": "node --test test/*.js"
   },
   "keywords": [],
   "author": "",

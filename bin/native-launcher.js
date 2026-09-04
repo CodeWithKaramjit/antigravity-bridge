@@ -81,14 +81,32 @@ function startBridge() {
 
   const outLog = fs.openSync(LOG_FILE, 'a');
   const nodeBin = process.execPath;
+  const childEnv = {
+    ...process.env,
+    PATH: EXTENDED_PATH + (process.env.PATH ? `:${process.env.PATH}` : '')
+  };
+  try {
+    const {
+      collectLsCandidates,
+      resolveCsrfToken,
+      LS_ENV_KEY,
+      CSRF_ENV_KEY
+    } = require(path.join(PROJECT_DIR, 'lib/agentapi-env.js'));
+    const candidates = collectLsCandidates();
+    if (candidates && candidates.length && candidates[0]) {
+      const best = typeof candidates[0] === 'object' ? candidates[0].address : candidates[0];
+      if (best) childEnv[LS_ENV_KEY] = best;
+    }
+    const csrfToken = resolveCsrfToken();
+    if (csrfToken) {
+      childEnv[CSRF_ENV_KEY] = csrfToken;
+    }
+  } catch (e) {}
   const child = spawn(nodeBin, [path.join(PROJECT_DIR, 'server.js')], {
     cwd: PROJECT_DIR,
     detached: true,
     stdio: ['ignore', outLog, outLog],
-    env: {
-      ...process.env,
-      PATH: EXTENDED_PATH + (process.env.PATH ? `:${process.env.PATH}` : '')
-    }
+    env: childEnv
   });
 
   child.unref();
@@ -98,13 +116,27 @@ function startBridge() {
   return { success: true, status: 'started', pid: child.pid, port: 4000 };
 }
 
+function isBridgeServerPid(pid) {
+  try {
+    const cmd = execFileSync('ps', ['-p', String(pid), '-o', 'command='], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 1500,
+      env: { ...process.env, PATH: EXTENDED_PATH }
+    });
+    return cmd.includes('server.js');
+  } catch (e) {
+    return false;
+  }
+}
+
 // Stop bridge server
 function stopBridge() {
   let stopped = false;
   if (fs.existsSync(PID_FILE)) {
     try {
       const pid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim(), 10);
-      if (pid && !isNaN(pid)) {
+      if (pid && !isNaN(pid) && isBridgeServerPid(pid)) {
         process.kill(pid, 'SIGTERM');
         stopped = true;
       }
@@ -124,6 +156,7 @@ function stopBridge() {
       .filter(l => l.startsWith('p'))
       .map(l => l.slice(1).trim());
     for (const pid of pids) {
+      if (!isBridgeServerPid(pid)) continue;
       try {
         process.kill(parseInt(pid, 10), 'SIGTERM');
         stopped = true;
@@ -132,6 +165,27 @@ function stopBridge() {
   } catch (e) {}
 
   return { success: true, status: 'stopped', wasRunning: stopped };
+}
+
+function loadIdeStatus() {
+  const candidates = [
+    path.join(__dirname, 'ide-status.js'),
+    path.join(PROJECT_DIR, 'lib/ide-status.js'),
+    path.join(__dirname, '../lib/ide-status.js')
+  ];
+  for (const file of candidates) {
+    try {
+      if (fs.existsSync(file)) {
+        return require(file);
+      }
+    } catch (e) {}
+  }
+  return { getIdeStatus: () => ({ installed: false, open: false }) };
+}
+
+function getIdeStatusPayload() {
+  const { getIdeStatus } = loadIdeStatus();
+  return getIdeStatus();
 }
 
 function getStatus() {
@@ -170,6 +224,10 @@ if (cliArg && !cliArg.startsWith('chrome-extension://')) {
     const res = getStatus();
     console.log(JSON.stringify(res, null, 2));
     process.exit(res.running ? 0 : 1);
+  } else if (cliArg === 'ide-status') {
+    const res = getIdeStatusPayload();
+    console.log(JSON.stringify(res, null, 2));
+    process.exit(0);
   }
 }
 
@@ -215,6 +273,8 @@ process.stdin.on('data', (chunk) => {
             res = stopBridge();
           } else if (req.action === 'status') {
             res = getStatus();
+          } else if (req.action === 'ide-status') {
+            res = getIdeStatusPayload();
           }
           logDebug(`Result: ${JSON.stringify(res)}`);
           sendNativeResponse(res, () => {

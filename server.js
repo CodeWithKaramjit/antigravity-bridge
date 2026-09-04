@@ -4,10 +4,18 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { execFileSync, execFile } = require('child_process');
+const { getIdeStatus } = require('./lib/ide-status');
+const {
+  collectLsCandidates,
+  sanitizeFeedbackTitle,
+  buildAgentApiEnv
+} = require('./lib/agentapi-env');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const HOST = process.env.HOST || '127.0.0.1';
 const VERSION = '2.0.2';
+const MAX_SCREENSHOT_BYTES = 15 * 1024 * 1024;
 
 function resolveAgentApiPath() {
   if (process.env.AGENTAPI_PATH && fs.existsSync(process.env.AGENTAPI_PATH)) {
@@ -30,7 +38,55 @@ function resolveAgentApiPath() {
 }
 const AGENTAPI_PATH = resolveAgentApiPath();
 
-app.use(cors());
+function defaultInboxDir(conversationId) {
+  return path.join(os.homedir(), '.gemini/antigravity-ide/brain', conversationId, 'inbox');
+}
+
+const defaultFeedbackDeps = {
+  listLsCandidates: (opts) => collectLsCandidates(opts),
+  runAgentApi: (args, options, callback) => execFile(AGENTAPI_PATH, args, options, callback),
+  getInboxDir: defaultInboxDir
+};
+
+let feedbackDeps = { ...defaultFeedbackDeps };
+
+function setFeedbackDeps(partial) {
+  feedbackDeps = { ...feedbackDeps, ...partial };
+}
+
+function resetFeedbackDeps() {
+  feedbackDeps = { ...defaultFeedbackDeps };
+}
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  if (origin.startsWith('chrome-extension://')) return true;
+  try {
+    const hostname = new URL(origin).hostname;
+    return hostname === 'localhost' || hostname === '127.0.0.1';
+  } catch (e) {
+    return false;
+  }
+}
+
+function isLoopbackAddress(addr) {
+  if (!addr) return false;
+  const normalized = String(addr).replace(/^::ffff:/, '');
+  return normalized === '127.0.0.1' || normalized === '::1' || normalized === 'localhost';
+}
+
+function rejectUnlessLoopback(req, res) {
+  const addr = (req.socket && req.socket.remoteAddress) || req.ip;
+  if (isLoopbackAddress(addr)) return false;
+  res.status(403).json({ success: false, error: 'This endpoint is only available from localhost.' });
+  return true;
+}
+
+app.use(cors({
+  origin(origin, callback) {
+    callback(null, isAllowedOrigin(origin));
+  }
+}));
 app.use(express.json({ limit: '25mb' }));
 
 /**
@@ -422,6 +478,7 @@ app.get('/health', (req, res) => {
     activeWorkspacePath: target.workspacePath,
     matchedBy: target.matchedBy,
     workspaces,
+    antigravity: getIdeStatus(),
     timestamp: new Date().toISOString()
   });
 });
@@ -437,6 +494,7 @@ app.get('/api/workspaces', (req, res) => {
 
 // Graceful shutdown endpoint
 app.post('/api/stop', (req, res) => {
+  if (rejectUnlessLoopback(req, res)) return;
   res.json({ success: true, message: 'Antigravity Bridge Server shutting down.' });
   if (require.main === module) {
     setTimeout(() => {
@@ -503,6 +561,7 @@ app.get('/', (req, res) => {
 
 // Primary Endpoint: Receives Visual UI Feedback from Chrome Extension / Browser
 app.post('/api/feedback', (req, res) => {
+  if (rejectUnlessLoopback(req, res)) return;
   // Rate limiting: prevent abuse from malicious pages
   if (isRateLimited(req.ip)) {
     return res.status(429).json({ success: false, error: 'Too many requests. Please wait before sending more feedback.' });
@@ -514,7 +573,9 @@ app.post('/api/feedback', (req, res) => {
     return res.status(400).json({ success: false, error: 'Comment / instructions are required.' });
   }
 
-  const target = resolveTarget(pageUrl, conversationId);
+  const target = feedbackDeps.resolveTarget
+    ? feedbackDeps.resolveTarget(pageUrl, conversationId)
+    : resolveTarget(pageUrl, conversationId);
   const targetConvId = target.conversationId;
 
   // Process and save annotated screenshot if provided
@@ -528,15 +589,30 @@ app.post('/api/feedback', (req, res) => {
       if (mimeMatch && commaIdx > 0) {
         const ext = mimeMatch[1] === 'jpeg' ? 'jpg' : 'png';
         const buffer = Buffer.from(screenshot.substring(commaIdx + 1), 'base64');
-        const targetDir = targetConvId
-          ? path.join(os.homedir(), '.gemini/antigravity-ide/brain', targetConvId, 'screenshots')
-          : path.join(os.tmpdir(), 'antigravity-screenshots');
+        if (buffer.length > MAX_SCREENSHOT_BYTES) {
+          console.warn('[Antigravity Bridge] Warning: Screenshot exceeds size cap, skipping disk write.');
+        } else {
+          const preferredDir = targetConvId
+            ? path.join(os.homedir(), '.gemini/antigravity-ide/brain', targetConvId, 'screenshots')
+            : path.join(os.tmpdir(), 'antigravity-screenshots');
+          const fallbackDir = path.join(os.tmpdir(), 'antigravity-screenshots');
+          const fileName = `screenshot_${Date.now()}.${ext}`;
 
-        fs.mkdirSync(targetDir, { recursive: true });
-        const fileName = `screenshot_${Date.now()}.${ext}`;
-        savedScreenshotPath = path.join(targetDir, fileName);
-        fs.writeFileSync(savedScreenshotPath, buffer);
-        console.log(`[Antigravity Bridge] Saved annotated screenshot to: ${savedScreenshotPath}`);
+          const writeTo = (dir) => {
+            fs.mkdirSync(dir, { recursive: true });
+            const dest = path.join(dir, fileName);
+            fs.writeFileSync(dest, buffer);
+            return dest;
+          };
+
+          try {
+            savedScreenshotPath = writeTo(preferredDir);
+          } catch (primaryErr) {
+            savedScreenshotPath = writeTo(fallbackDir);
+            console.warn('[Antigravity Bridge] Warning: Brain screenshot dir unavailable, used tmp:', primaryErr.message);
+          }
+          console.log(`[Antigravity Bridge] Saved annotated screenshot to: ${savedScreenshotPath}`);
+        }
       }
     } catch (saveErr) {
       console.warn('[Antigravity Bridge] Warning: Could not save screenshot to disk:', saveErr.message);
@@ -598,50 +674,136 @@ app.post('/api/feedback', (req, res) => {
   if (selector) console.log(`- Selector: ${selector}`);
   console.log(`- Instructions: ${comment}\n`);
 
-  if (!targetConvId) {
-    return res.status(200).json({
-      success: true,
-      deliveredVia: 'queued',
-      savedScreenshotPath,
-      message: 'Feedback received, but no active Antigravity IDE conversation was found. Please keep Antigravity open.'
+  const title = sanitizeFeedbackTitle(savedScreenshotPath ? 'UI-Screenshot' : 'UI-Feedback');
+  const lsCandidates = typeof feedbackDeps.listLsCandidates === 'function'
+    ? feedbackDeps.listLsCandidates({ log: true })
+    : [];
+  const candidateCount = Array.isArray(lsCandidates) ? lsCandidates.length : 0;
+  console.log('[Antigravity Bridge] LS listen candidates to try:', candidateCount);
+
+  function runAgentApi(args, lsCandidate) {
+    return new Promise((resolve) => {
+      const childEnv = lsCandidate
+        ? buildAgentApiEnv(lsCandidate)
+        : buildAgentApiEnv(null);
+      feedbackDeps.runAgentApi(args, {
+        env: childEnv,
+        timeout: 15000
+      }, (error, stdout) => {
+        if (error) {
+          const firstLine = String(error.message || '').split('\n')[0];
+          console.warn('[Antigravity Bridge] LS candidate attempt failed:', firstLine);
+        }
+        resolve({ error, stdout });
+      });
     });
   }
 
-  const titlePrefix = savedScreenshotPath ? 'UI Screenshot' : 'UI Feedback';
-  const title = `${titlePrefix}: ${(selector || 'Annotation').slice(0, 25)}`;
-  const args = ['send-message', `--title=${title}`, targetConvId, prompt];
+  async function tryAgentApi(args) {
+    if (candidateCount === 0) {
+      return runAgentApi(args, null);
+    }
+    for (let i = 0; i < lsCandidates.length; i++) {
+      console.log('[Antigravity Bridge] trying LS candidate', i + 1, 'of', candidateCount);
+      const result = await runAgentApi(args, lsCandidates[i]);
+      if (!result.error) {
+        console.log('[Antigravity Bridge] LS candidate succeeded at index', i);
+        return result;
+      }
+    }
+    return { error: new Error('all LS candidates failed') };
+  }
 
-  execFile(AGENTAPI_PATH, args, (error, stdout, stderr) => {
-    if (error) {
-      console.warn('[Antigravity Bridge] agentapi execution warning:', error.message);
+  function inboxResponse(reason, conversationId) {
+    const convId = conversationId || targetConvId || 'unassigned';
+    try {
+      const inboxDir = feedbackDeps.getInboxDir(convId);
+      fs.mkdirSync(inboxDir, { recursive: true });
+      const inboxPath = path.join(inboxDir, `bridge_${Date.now()}.md`);
+      fs.writeFileSync(inboxPath, prompt, 'utf8');
+      console.log('[Antigravity Bridge] Inbox fallback written:', inboxPath, `(${reason})`);
       return res.status(200).json({
         success: true,
-        deliveredVia: 'queued',
+        deliveredVia: 'inbox',
+        inboxPath,
+        conversationId: targetConvId || null,
+        workspaceName: target.workspaceName,
+        workspacePath: target.workspacePath,
+        matchedBy: target.matchedBy,
+        savedScreenshotPath,
+        message: `Chat inject unavailable (${reason}). Feedback saved to Antigravity inbox: ${inboxPath}`
+      });
+    } catch (inboxErr) {
+      console.warn('[Antigravity Bridge] Inbox fallback failed:', inboxErr.message);
+      return res.status(503).json({
+        success: false,
+        error: 'Could not deliver feedback to Antigravity (no chat and inbox write failed).',
+        code: 'AGENTAPI_NO_CONVERSATION',
+        savedScreenshotPath
+      });
+    }
+  }
+
+  async function openNewConversation() {
+    const args = ['new-conversation', `--title=${title}`, prompt];
+    console.log('[Antigravity Bridge] Opening a new Antigravity chat');
+    const result = await tryAgentApi(args);
+    return !result.error;
+  }
+
+  (async () => {
+    if (!targetConvId) {
+      if (await openNewConversation()) {
+        return res.status(200).json({
+          success: true,
+          deliveredVia: 'new-conversation',
+          workspaceName: target.workspaceName,
+          savedScreenshotPath,
+          message: 'No existing chat found. Opened a new Antigravity conversation with your feedback.'
+        });
+      }
+      return inboxResponse(candidateCount ? 'no conversation; new chat failed' : 'missing language-server address');
+    }
+
+    const sendResult = await tryAgentApi(['send-message', `--title=${title}`, targetConvId, prompt]);
+    if (!sendResult.error) {
+      console.log(`[Antigravity Bridge] Successfully forwarded to ${target.workspaceName} (${targetConvId})!`);
+      return res.status(200).json({
+        success: true,
+        deliveredVia: 'agentapi',
+        conversationId: targetConvId,
+        workspaceName: target.workspaceName,
+        workspacePath: target.workspacePath,
+        matchedBy: target.matchedBy,
+        savedScreenshotPath,
+        message: `Visual feedback & screenshot successfully sent to Antigravity (${target.workspaceName}) chat!`
+      });
+    }
+    console.warn('[Antigravity Bridge] agentapi send failed on all LS candidates, trying new conversation');
+
+    if (await openNewConversation()) {
+      return res.status(200).json({
+        success: true,
+        deliveredVia: 'new-conversation',
         conversationId: targetConvId,
         workspaceName: target.workspaceName,
         savedScreenshotPath,
-        message: 'Feedback received and queued for Antigravity IDE.',
-        notice: error.message
+        message: 'Opened a new Antigravity chat with your feedback.'
       });
     }
 
-    console.log(`[Antigravity Bridge] Successfully forwarded to ${target.workspaceName} (${targetConvId})!`);
-    return res.status(200).json({
-      success: true,
-      deliveredVia: 'agentapi',
-      conversationId: targetConvId,
-      workspaceName: target.workspaceName,
-      workspacePath: target.workspacePath,
-      matchedBy: target.matchedBy,
-      savedScreenshotPath,
-      message: `Visual feedback & screenshot successfully sent to Antigravity (${target.workspaceName}) chat!`
-    });
+    return inboxResponse(candidateCount ? 'agentapi send failed' : 'missing language-server address');
+  })().catch((err) => {
+    console.warn('[Antigravity Bridge] Feedback handler error:', err.message);
+    if (!res.headersSent) {
+      inboxResponse('handler error');
+    }
   });
 });
 
 if (require.main === module) {
-  const server = app.listen(PORT, () => {
-    console.log(`Antigravity Bridge Server running on http://localhost:${PORT}`);
+  const server = app.listen(PORT, HOST, () => {
+    console.log(`Antigravity Bridge Server running on http://${HOST}:${PORT}`);
   });
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
@@ -657,3 +819,14 @@ if (require.main === module) {
 }
 
 module.exports = app;
+module.exports._test = {
+  getPortFromUrl,
+  escapeHtml,
+  isAllowedOrigin,
+  isLoopbackAddress,
+  MAX_SCREENSHOT_BYTES,
+  getIdeStatus,
+  sanitizeFeedbackTitle,
+  setFeedbackDeps,
+  resetFeedbackDeps
+};

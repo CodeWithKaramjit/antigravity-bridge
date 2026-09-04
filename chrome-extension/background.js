@@ -90,6 +90,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.action === 'submit-feedback') {
+    fetch('http://127.0.0.1:4000/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message.payload || {})
+    })
+      .then(async (response) => {
+        let data = {};
+        try {
+          data = await response.json();
+        } catch (e) {}
+        sendResponse({ ok: response.ok, data });
+      })
+      .catch((err) => {
+        sendResponse({ ok: false, error: err.message });
+      });
+    return true;
+  }
+
   if (message.action === 'capture-tab') {
     const windowId = sender.tab ? sender.tab.windowId : null;
     chrome.tabs.captureVisibleTab(windowId, { format: 'png' }, (dataUrl) => {

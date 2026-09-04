@@ -23,7 +23,6 @@
   }
   window.__antigravityInspectorInitialized = true;
 
-  const BRIDGE_API_URL = 'http://localhost:4000/api/feedback';
   let isInspectMode = false;
   let isScreenshotMode = false;
   let hoveredElement = null;
@@ -616,10 +615,12 @@
   toast.className = 'ag-toast';
   shadow.appendChild(toast);
 
-  function showToast(msg, isError = false) {
+  function showToast(msg, tone = false) {
+    const isError = tone === true || tone === 'error';
+    const isWarn = tone === 'warn';
     toast.textContent = msg;
-    toast.style.borderColor = isError ? '#f43f5e' : '#10b981';
-    toast.style.color = isError ? '#fecdd3' : '#a7f3d0';
+    toast.style.borderColor = isError ? '#f43f5e' : (isWarn ? '#f59e0b' : '#10b981');
+    toast.style.color = isError ? '#fecdd3' : (isWarn ? '#fde68a' : '#a7f3d0');
     toast.style.display = 'block';
     setTimeout(() => {
       toast.style.display = 'none';
@@ -1249,28 +1250,44 @@
     const elementHtml = selectedElement ? selectedElement.outerHTML.slice(0, 1500) : '';
 
     try {
-      const response = await fetch(BRIDGE_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pageUrl: window.location.href,
-          element: elementHtml,
-          selector: selector,
-          comment: comment,
-          screenshot: currentScreenshotDataUrl || undefined
-        })
+      const payload = {
+        pageUrl: window.location.href,
+        element: elementHtml,
+        selector: selector,
+        comment: comment,
+        screenshot: currentScreenshotDataUrl || undefined
+      };
+
+      const result = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({ action: 'submit-feedback', payload }, (res) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+          resolve(res || {});
+        });
       });
 
-      const data = await response.json();
+      if (!result.ok && result.error) {
+        throw new Error(result.error);
+      }
 
-      if (response.ok && data.success) {
+      const data = result.data || {};
+      const responseOk = !!result.ok;
+
+      if (responseOk && data.success && data.deliveredVia === 'inbox') {
+        closeModal();
+        showToast(data.message || `Saved to Antigravity inbox: ${data.inboxPath || ''}`, 'warn');
+      } else if (responseOk && data.success && data.deliveredVia === 'new-conversation') {
+        closeModal();
+        showToast(data.message || 'Opened a new Antigravity chat with your feedback.');
+      } else if (responseOk && data.success) {
         closeModal();
         const ws = data.workspaceName ? `(${data.workspaceName}) ` : '';
         const imgNotice = data.savedScreenshotPath ? 'with annotated screenshot ' : '';
         showToast(`✓ Visual feedback ${imgNotice}sent to Antigravity ${ws}chat! Review the plan in your IDE for approval.`);
       } else {
-        showToast(`Delivery notice: ${data.message || 'Queued'}`, false);
-        closeModal();
+        showToast(data.error || data.message || 'Could not send to Antigravity IDE.', true);
       }
     } catch (err) {
       showToast(`Bridge Connection Error: ${err.message}. Is "node server.js" running on port 4000?`, true);

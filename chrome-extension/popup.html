@@ -333,6 +333,20 @@
       color: var(--accent-emerald);
       border: 1px solid rgba(52, 211, 153, 0.2);
     }
+    .badge-ok {
+      background: var(--accent-emerald-dim);
+      color: var(--accent-emerald);
+      border: 1px solid rgba(52, 211, 153, 0.2);
+    }
+    .badge-off {
+      background: var(--accent-rose-dim);
+      color: var(--accent-rose);
+      border: 1px solid rgba(251, 113, 133, 0.2);
+    }
+    .info-icon.ide-icon {
+      background: var(--accent-indigo-dim);
+      color: var(--accent-indigo);
+    }
 
     /* ──────────────────────────────────────
        Action Buttons
@@ -544,6 +558,39 @@
 
   <!-- ─── Info Cards ─── -->
   <div class="info-cards">
+    <div class="info-card animate-in">
+      <div class="info-card-left">
+        <div class="info-icon ide-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="14" rx="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="18" x2="12" y2="21"></line>
+          </svg>
+        </div>
+        <div class="info-card-text">
+          <span class="info-card-label">Antigravity IDE</span>
+          <span class="info-card-value" id="ideInstalledLabel">Checking…</span>
+        </div>
+      </div>
+      <span class="info-badge badge-off" id="ideInstalledBadge">…</span>
+    </div>
+
+    <div class="info-card animate-in">
+      <div class="info-card-left">
+        <div class="info-icon ide-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </div>
+        <div class="info-card-text">
+          <span class="info-card-label">Status</span>
+          <span class="info-card-value" id="ideOpenLabel">Checking…</span>
+        </div>
+      </div>
+      <span class="info-badge badge-off" id="ideOpenBadge">…</span>
+    </div>
+
     <!-- Active Tab Card -->
     <div class="info-card animate-in">
       <div class="info-card-left">

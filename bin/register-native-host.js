@@ -31,6 +31,7 @@ try {
   // Copy launcher scripts to ~/.antigravity-bridge/host
   fs.copyFileSync(path.join(__dirname, 'native-launcher.sh'), LAUNCHER_PATH);
   fs.copyFileSync(path.join(__dirname, 'native-launcher.js'), path.join(INSTALL_DIR, 'native-launcher.js'));
+  fs.copyFileSync(path.join(PROJECT_DIR, 'lib/ide-status.js'), path.join(INSTALL_DIR, 'ide-status.js'));
 
   fs.chmodSync(LAUNCHER_PATH, 0o755);
   fs.chmodSync(path.join(INSTALL_DIR, 'native-launcher.js'), 0o755);

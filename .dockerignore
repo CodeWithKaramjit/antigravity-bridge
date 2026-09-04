@@ -1,0 +1,15 @@
+node_modules
+.git
+.github
+.DS_Store
+.bridge.pid
+.bridge.log
+docs
+test
+chrome-extension
+Start Bridge.command
+Stop Bridge.command
+README.md
+.env
+.env.*
+!.env.example
