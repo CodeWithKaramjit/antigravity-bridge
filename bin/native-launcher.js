@@ -8,7 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { spawn, execSync } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
 
 let PROJECT_DIR = path.resolve(__dirname, '..');
 try {
@@ -61,7 +61,7 @@ const EXTENDED_PATH = [
 // Check if bridge server (port 4000) is running
 function isPort4000Running() {
   try {
-    const out = execSync('lsof -i :4000 -sTCP:LISTEN -n -P -F p', {
+    const out = execFileSync('lsof', ['-i', ':4000', '-sTCP:LISTEN', '-n', '-P', '-F', 'p'], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
       timeout: 1500,
@@ -114,7 +114,7 @@ function stopBridge() {
 
   // Also kill any remaining process listening on 4000
   try {
-    const lsofOut = execSync('lsof -i :4000 -sTCP:LISTEN -n -P -F p', {
+    const lsofOut = execFileSync('lsof', ['-i', ':4000', '-sTCP:LISTEN', '-n', '-P', '-F', 'p'], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
       timeout: 1500,

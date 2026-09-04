@@ -108,7 +108,16 @@ describe('Antigravity Bridge Server Test Suite', () => {
     assert.ok(fs.existsSync(data.savedScreenshotPath));
   });
 
-  test('8. POST /api/stop - Responds with shutdown confirmation', async () => {
+  test('8. GET /health?url=http://justice-for-punjab.test - Routes to workspace by domain slug (Docker/Apache/custom domains)', async () => {
+    const res = await fetch(`${baseUrl}/health?url=http://justice-for-punjab.test/admin`);
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.ok(data.activeWorkspace);
+    assert.ok(data.matchedBy.startsWith('slug:') || data.matchedBy.startsWith('herd/valet') || data.matchedBy.startsWith('port:'));
+    assert.ok(data.activeWorkspace.toLowerCase().includes('justice'));
+  });
+
+  test('9. POST /api/stop - Responds with shutdown confirmation', async () => {
     const res = await fetch(`${baseUrl}/api/stop`, { method: 'POST' });
     assert.equal(res.status, 200);
     const data = await res.json();

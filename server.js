@@ -330,6 +330,42 @@ function resolveTarget(pageUrl, conversationId) {
     }
   } catch (e) {}
 
+  // Strategy 4: Domain & Path Slug Matching (Docker, Lando, DDEV, Apache, MAMP, XAMPP, custom domains, subfolders)
+  try {
+    if (pageUrl) {
+      const parsedUrl = new URL(pageUrl);
+      const cleanHost = parsedUrl.hostname.replace(/\.(test|local|localhost|site|dev|internal)$/i, '');
+      const pathSegments = parsedUrl.pathname.split('/').filter(Boolean);
+      const ignoredTokens = new Set(['localhost', '127001', 'admin', 'login', 'index', 'public', 'api', 'home', 'app', 'dashboard', 'auth', 'user', 'v1', 'v2']);
+      const candidateTokens = [cleanHost, ...pathSegments]
+        .map(s => s.toLowerCase().replace(/[^a-z0-9]/g, ''))
+        .filter(s => s.length >= 3 && !ignoredTokens.has(s));
+
+      for (const token of candidateTokens) {
+        const slugMatch = convs.find(c => {
+          const wsBasename = c.workspacePath ? path.basename(c.workspacePath).toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+          const wsName = c.workspaceName ? c.workspaceName.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+          const repoName = c.repoName ? c.repoName.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+
+          return (
+            (wsBasename && (wsBasename === token || wsBasename.includes(token) || token.includes(wsBasename))) ||
+            (wsName && (wsName === token || wsName.includes(token) || token.includes(wsName))) ||
+            (repoName && (repoName === token || repoName.includes(token) || token.includes(repoName)))
+          );
+        });
+
+        if (slugMatch) {
+          return {
+            conversationId: slugMatch.conversationId,
+            workspaceName: slugMatch.workspaceName,
+            workspacePath: slugMatch.workspacePath,
+            matchedBy: `slug:${token}`
+          };
+        }
+      }
+    }
+  } catch (e) {}
+
   // Fallback to most recently updated conversation
   if (convs.length > 0) {
     const latest = convs[0];

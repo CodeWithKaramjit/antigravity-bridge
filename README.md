@@ -1,10 +1,10 @@
 # 🚀 Antigravity Bridge & Visual Inspector
 
-[![Version](https://img.shields.io/badge/Version-2.0.1-blueviolet.svg)]()
+[![Version](https://img.shields.io/badge/Version-2.0.2-blueviolet.svg)]()
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-5.x-blue.svg)](https://expressjs.com/)
 [![Chrome Extension](https://img.shields.io/badge/Chrome_Extension-Manifest_V3-orange.svg)](https://developer.chrome.com/docs/extensions/)
-[![Tests](https://img.shields.io/badge/Tests-7%20Passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-9%20Passed-brightgreen.svg)]()
 
 A seamless bridge connecting your local web projects directly to **Google Antigravity IDE**. 
 
@@ -149,11 +149,13 @@ Sample output:
 ✔ 1. GET /health - Returns bridge status and active conversation
 ✔ 2. GET / - Serves Bridge Server status dashboard
 ✔ 3. GET /api/workspaces - Returns detected Antigravity workspaces
-✔ 4. GET /health?url=http://localhost:5173 - Accurately routes to Rendosa workspace by port 5173
+✔ 4. GET /health?url=http://localhost:5173 - Accurately routes to workspace by port 5173
 ✔ 5. POST /api/feedback - Validates required instructions (HTTP 400 on empty)
 ✔ 6. POST /api/feedback - Forwards UI feedback to target project chat with plan requirement
 ✔ 7. POST /api/feedback - Saves base64 annotated screenshot to disk and forwards to IDE
-ℹ pass 7, fail 0
+✔ 8. GET /health?url=http://justice-for-punjab.test - Routes to workspace by domain slug (Docker/Apache/custom domains)
+✔ 9. POST /api/stop - Responds with shutdown confirmation
+ℹ pass 9, fail 0
 ```
 
 ---
