@@ -1,10 +1,15 @@
 # 🚀 Antigravity Bridge & Visual Inspector
 
 [![Version](https://img.shields.io/badge/Version-2.0.2-blueviolet.svg)]()
+[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/CodeWithKaramjit/antigravity-bridge/pulls)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-5.x-blue.svg)](https://expressjs.com/)
 [![Chrome Extension](https://img.shields.io/badge/Chrome_Extension-Manifest_V3-orange.svg)](https://developer.chrome.com/docs/extensions/)
 [![Tests](https://img.shields.io/badge/Tests-10%20Passed-brightgreen.svg)]()
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/codewithkaramjit)
+
+**Open source.** Anyone can use it, fork it, and contribute.
 
 A seamless bridge connecting your local web projects directly to **Google Antigravity IDE**. 
 
@@ -195,6 +200,31 @@ This project strictly adheres to [Semantic Versioning](https://semver.org/):
 
 ---
 
+## 🤝 Contributing
+
+This project is **open source**. Pull requests, issues, and ideas from anyone are welcome.
+
+1. Fork the repo and create a branch from `main`.
+2. Make your change (bug fix, feature, docs, or tests).
+3. Run `npm test` and `npm run lint` before you open a PR.
+4. Open a pull request and describe what you changed and why.
+
+Good first contributions include docs, tests, Chrome extension UX, and bridge-server bug fixes.
+
+Found a bug or have an idea? [Open an issue](https://github.com/CodeWithKaramjit/antigravity-bridge/issues).
+
+---
+
+## ☕ Buy me a coffee
+
+If this project saves you time, you can support it with a coffee. It is optional — contributions of code and issues help just as much.
+
+[![Buy Me A Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=☕&slug=codewithkaramjit&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://www.buymeacoffee.com/codewithkaramjit)
+
+---
+
 ## 📄 License
 
-ISC License. Built for seamless AI-assisted web development with Google Antigravity IDE.
+ISC License — free to use, modify, and contribute.
+
+Built for seamless AI-assisted web development with Google Antigravity IDE.
